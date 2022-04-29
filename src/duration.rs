@@ -4,6 +4,8 @@ use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 use derive_more::Display;
 use eyre::{eyre, Result};
 use num_traits::ToPrimitive;
+use rand::distributions::uniform::{SampleBorrow, SampleUniform, UniformInt, UniformSampler};
+use rand::prelude::*;
 use regex::Regex;
 
 const BASES: &[(&str, Duration)] = &[("w", WEEK), ("d", DAY), ("h", HOUR), ("m", MIN), ("s", SEC)];
@@ -178,6 +180,36 @@ impl ToPrimitive for Duration {
     fn to_f64(&self) -> Option<f64> {
         Some(Duration::as_f64(*self))
     }
+}
+
+pub struct UniformDuration(UniformInt<i64>);
+
+impl UniformSampler for UniformDuration {
+    type X = Duration;
+
+    fn new<B1, B2>(low: B1, high: B2) -> Self
+    where
+        B1: SampleBorrow<Self::X> + Sized,
+        B2: SampleBorrow<Self::X> + Sized,
+    {
+        UniformDuration(UniformInt::<i64>::new(low.borrow().secs(), high.borrow().secs()))
+    }
+
+    fn new_inclusive<B1, B2>(low: B1, high: B2) -> Self
+    where
+        B1: SampleBorrow<Self::X> + Sized,
+        B2: SampleBorrow<Self::X> + Sized,
+    {
+        UniformDuration(UniformInt::<i64>::new_inclusive(low.borrow().secs(), high.borrow().secs()))
+    }
+
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Self::X {
+        Duration::new(self.0.sample(rng))
+    }
+}
+
+impl SampleUniform for Duration {
+    type Sampler = UniformDuration;
 }
 
 pub const SEC: Duration = Duration::new(1);

@@ -65,6 +65,11 @@ impl<T: PartialOrd + Copy> Span<T> {
         let en = pmin(self.en, s.en);
         if en > st { Some(Span::new(st, en)) } else { None }
     }
+
+    #[must_use]
+    pub fn span_union(&self, s: &Self) -> Self {
+        Span::new(pmin(self.st, s.st), pmax(self.en, s.en))
+    }
 }
 
 impl<T: PartialOrd + Copy + Sub> Span<T> {
