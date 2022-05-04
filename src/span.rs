@@ -25,12 +25,20 @@ pub struct Span<T: PartialOrd + Copy> {
 
 /// Returns |a| if |b| is not comparable.
 pub fn pmin<X: PartialOrd + Copy>(a: X, b: X) -> X {
-    if b < a { b } else { a }
+    if b < a {
+        b
+    } else {
+        a
+    }
 }
 
 /// Returns |a| if |b| is not comparable.
 pub fn pmax<X: PartialOrd + Copy>(a: X, b: X) -> X {
-    if b > a { b } else { a }
+    if b > a {
+        b
+    } else {
+        a
+    }
 }
 
 impl<T: PartialOrd + Copy> Span<T> {
@@ -63,7 +71,11 @@ impl<T: PartialOrd + Copy> Span<T> {
     pub fn intersect(&self, s: &Self) -> Option<Self> {
         let st = pmax(self.st, s.st);
         let en = pmin(self.en, s.en);
-        if en > st { Some(Span::new(st, en)) } else { None }
+        if en > st {
+            Some(Span::new(st, en))
+        } else {
+            None
+        }
     }
 
     #[must_use]
