@@ -34,7 +34,11 @@ impl CachedCalendar {
             return Err(eyre!("requested time {} outside of cached span {}", t, self.span));
         }
         let idx = self.spans.partition_point(|v| v.st <= t);
-        if idx < self.spans.len() { Ok(Some(self.spans[idx])) } else { Ok(None) }
+        if idx < self.spans.len() {
+            Ok(Some(self.spans[idx]))
+        } else {
+            Ok(None)
+        }
     }
 
     #[must_use]

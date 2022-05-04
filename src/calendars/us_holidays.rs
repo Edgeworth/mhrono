@@ -28,7 +28,11 @@ fn nearest_workday(d: Date) -> Option<Date> {
 }
 
 fn next_tuesday_every_four_years(d: Date) -> Option<Date> {
-    if d.year() % 4 == 0 { Some(Date::op(DOp::FindTue, 1).apply(d)) } else { None }
+    if d.year() % 4 == 0 {
+        Some(Date::op(DOp::FindTue, 1).apply(d))
+    } else {
+        None
+    }
 }
 
 #[allow(clippy::unnecessary_wraps)]

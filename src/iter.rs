@@ -24,7 +24,11 @@ impl Iterator for TimeIter {
     fn next(&mut self) -> Option<Self::Item> {
         let t = self.t;
         self.t = self.op.apply(t);
-        if self.t >= self.en { None } else { Some(self.t) }
+        if self.t >= self.en {
+            None
+        } else {
+            Some(self.t)
+        }
     }
 }
 
@@ -53,6 +57,10 @@ impl Iterator for DateIter {
     fn next(&mut self) -> Option<Self::Item> {
         let d = self.d;
         self.d = self.op.apply(d);
-        if d >= self.en { None } else { Some(d) }
+        if d >= self.en {
+            None
+        } else {
+            Some(d)
+        }
     }
 }
