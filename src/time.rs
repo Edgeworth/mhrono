@@ -64,11 +64,15 @@ impl Time {
 /// String related functions
 impl Time {
     /// From format e.g. 2020/01/30
-    pub fn from_ymd_str(s: &str, tz: Tz) -> Result<Self> {
-        Self::from_local_date_str(s, "%Y/%m/%d", tz)
+    pub fn from_ymd(s: &str, tz: Tz) -> Result<Self> {
+        Self::from_local_date_fmt(s, "%Y/%m/%d", tz)
     }
 
-    pub fn from_local_date_str(s: &str, fmt: &str, tz: Tz) -> Result<Self> {
+    pub fn from_ymd_fmt(s: &str, fmt: &str, tz: Tz) -> Result<Self> {
+        Self::from_local_date_fmt(s, fmt, tz)
+    }
+
+    pub fn from_local_date_fmt(s: &str, fmt: &str, tz: Tz) -> Result<Self> {
         let d = tz.from_local_date(&NaiveDate::parse_from_str(s, fmt)?);
         let d = d.single().ok_or_else(|| eyre!("no single representation for {}", s))?;
         Ok(Self::from_date(d))
@@ -87,7 +91,7 @@ impl Time {
         Ok(Self::new(dt))
     }
 
-    pub fn from_local_datetime_str(s: &str, fmt: &str, tz: Tz) -> Result<Self> {
+    pub fn from_local_datetime_fmt(s: &str, fmt: &str, tz: Tz) -> Result<Self> {
         Self::from_local_datetime(NaiveDateTime::parse_from_str(s, fmt)?, tz)
     }
 
@@ -454,8 +458,8 @@ mod tests {
     fn date_tz_conversion() -> Result<()> {
         let expected = Time::from_date(Sydney.ymd(2018, 1, 30));
         let d_str = "30 Jan 2018";
-        assert_eq!(expected, Time::from_ymd_str("2018/1/30", Sydney)?);
-        assert_eq!(expected, Time::from_local_date_str(d_str, "%d %b %Y", Sydney)?);
+        assert_eq!(expected, Time::from_ymd("2018/1/30", Sydney)?);
+        assert_eq!(expected, Time::from_local_date_fmt(d_str, "%d %b %Y", Sydney)?);
 
         Ok(())
     }
@@ -472,7 +476,7 @@ mod tests {
                 Sydney
             )?
         );
-        assert_eq!(expected, Time::from_local_datetime_str(dt_str, "%d %b %Y %H:%M:%S", Sydney)?);
+        assert_eq!(expected, Time::from_local_datetime_fmt(dt_str, "%d %b %Y %H:%M:%S", Sydney)?);
 
         Ok(())
     }
