@@ -11,7 +11,7 @@ use regex::Regex;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 
-const BASES: &[(&str, Duration)] = &[
+pub const BASES: &[(&str, Duration)] = &[
     ("w", WEEK),
     ("d", DAY),
     ("h", HOUR),
@@ -26,7 +26,7 @@ const BASES: &[(&str, Duration)] = &[
 ];
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Display, Ord, PartialOrd)]
-#[display(fmt = "{}", "self.human()")]
+#[display(fmt = "{}", "self.human().unwrap_or_else(|_| self.secs.to_string())")]
 pub struct Duration {
     secs: Decimal,
 }
@@ -64,11 +64,14 @@ impl Duration {
         std::time::Duration::new(secs.to_u64().unwrap(), nanos.to_u64().unwrap() as u32)
     }
 
-    #[must_use]
-    pub fn human(&self) -> String {
+    pub fn human(&self) -> Result<String> {
+        self.human_bases(BASES)
+    }
+
+    pub fn human_bases(&self, bases: &[(&str, Duration)]) -> Result<String> {
         let mut rem = *self;
         let mut human = String::new();
-        for &(s, dur) in BASES {
+        for &(s, dur) in bases {
             let div = (rem / dur).trunc();
             rem -= dur * div;
             if !div.is_zero() {
@@ -76,10 +79,11 @@ impl Duration {
             }
         }
         // Some sub-attosecond duration...
-        if !rem.is_zero() {
-            let _ = write!(human, "...");
+        if rem.is_zero() {
+            Ok(human)
+        } else {
+            Err(eyre!("remainder is not zero"))
         }
-        human
     }
 
     pub fn from_human(s: &str) -> Result<Duration> {
@@ -248,25 +252,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn human() {
-        assert_eq!("...", Duration::new(Decimal::new(1, 26)).human());
-        assert_eq!("1as", ASEC.human());
-        assert_eq!("1fs", FSEC.human());
-        assert_eq!("1ps", PSEC.human());
-        assert_eq!("1ns", NSEC.human());
-        assert_eq!("1us", USEC.human());
-        assert_eq!("1ms", MSEC.human());
-        assert_eq!("1s", SEC.human());
-        assert_eq!("1s1ms", (SEC + MSEC).human());
-        assert_eq!("1s1ms1us", (SEC + MSEC + USEC).human());
-        assert_eq!("1s1ms1us1ns", (SEC + MSEC + USEC + NSEC).human());
-        assert_eq!("1m", MIN.human());
-        assert_eq!("1h", HOUR.human());
-        assert_eq!("1d", DAY.human());
-        assert_eq!("1w", WEEK.human());
-        assert_eq!("5m", (5 * MIN).human());
-        assert_eq!("15m", (15 * MIN).human());
-        assert_eq!("15m7s", (15 * MIN + 7 * SEC).human());
+    fn human() -> Result<()> {
+        assert_eq!("...", Duration::new(Decimal::new(1, 26)).human()?);
+        assert_eq!("1as", ASEC.human()?);
+        assert_eq!("1fs", FSEC.human()?);
+        assert_eq!("1ps", PSEC.human()?);
+        assert_eq!("1ns", NSEC.human()?);
+        assert_eq!("1us", USEC.human()?);
+        assert_eq!("1ms", MSEC.human()?);
+        assert_eq!("1s", SEC.human()?);
+        assert_eq!("1s1ms", (SEC + MSEC).human()?);
+        assert_eq!("1s1ms1us", (SEC + MSEC + USEC).human()?);
+        assert_eq!("1s1ms1us1ns", (SEC + MSEC + USEC + NSEC).human()?);
+        assert_eq!("1m", MIN.human()?);
+        assert_eq!("1h", HOUR.human()?);
+        assert_eq!("1d", DAY.human()?);
+        assert_eq!("1w", WEEK.human()?);
+        assert_eq!("5m", (5 * MIN).human()?);
+        assert_eq!("15m", (15 * MIN).human()?);
+        assert_eq!("15m7s", (15 * MIN + 7 * SEC).human()?);
+        Ok(())
     }
 
     #[test]

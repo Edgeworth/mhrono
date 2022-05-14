@@ -9,11 +9,13 @@ use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 
 use crate::cycles::Cycles;
-use crate::duration::{Duration, ASEC, DAY, FSEC, HOUR, MIN, MSEC, NSEC, PSEC, SEC, USEC, WEEK};
+use crate::duration::{
+    Duration, ASEC, BASES, DAY, FSEC, HOUR, MIN, MSEC, NSEC, PSEC, SEC, USEC, WEEK,
+};
 
 /// Number of times something happens in a second. Hertz.
 #[derive(Debug, Eq, Copy, Clone, Display)]
-#[display(fmt = "{}", "self.human()")]
+#[display(fmt = "{}", "self.human().unwrap_or_else(|_| format!(\"{}:{}\", self.num, self.denom))")]
 pub struct Freq {
     /// Rational-like representation so that we can accurately represent ratios.
     /// Represents number of cycles per duration.
@@ -33,7 +35,8 @@ impl Ord for Freq {
     fn cmp(&self, o: &Self) -> Ordering {
         let a = self.num * o.denom;
         let b = o.num * self.denom;
-        a.cmp(&b)
+        // Reverse since a smaller period corresponds to a higher frequency.
+        b.cmp(&a)
     }
 }
 
@@ -83,13 +86,16 @@ impl Freq {
         self.num / self.denom
     }
 
-    #[must_use]
-    pub fn human(&self) -> String {
-        let dur_human = Duration::new(self.denom).human();
+    pub fn human(&self) -> Result<String> {
+        self.human_bases(BASES)
+    }
+
+    pub fn human_bases(&self, bases: &[(&str, Duration)]) -> Result<String> {
+        let dur_human = Duration::new(self.denom).human_bases(bases)?;
         if self.num == dec!(1) {
-            dur_human
+            Ok(dur_human)
         } else {
-            format!("{}:{}", self.num, dur_human)
+            Ok(format!("{}:{}", self.num, dur_human))
         }
     }
 
