@@ -7,11 +7,13 @@ use chrono_tz::{Tz, UTC};
 use derive_more::Display;
 use eyre::{eyre, Result};
 use num_traits::ToPrimitive;
+use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 use serde::de::{self, Visitor};
 use serde::{Deserialize, Serialize};
 
 use crate::date::{Date, Day};
-use crate::duration::Duration;
+use crate::duration::{Duration, SEC};
 use crate::op::{TOp, TimeOp};
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Display, Ord, PartialOrd)]
@@ -20,6 +22,7 @@ pub struct Time {
     t: DateTime<Tz>,
 }
 
+/// Creation
 impl Time {
     #[must_use]
     pub const fn new(t: DateTime<Tz>) -> Self {
@@ -28,9 +31,33 @@ impl Time {
 
     #[must_use]
     pub fn zero(tz: Tz) -> Self {
-        Time::from_utc_secs(0, tz)
+        Time::from_utc_timestamp(0, 0, tz)
     }
 
+    pub fn from_date(d: impl Into<chrono::Date<Tz>>) -> Self {
+        Self { t: d.into().and_hms(0, 0, 0) }
+    }
+
+    #[must_use]
+    pub fn from_utc_timestamp(utc_secs: i64, utc_nanos: u32, tz: Tz) -> Self {
+        tz.from_utc_datetime(&NaiveDateTime::from_timestamp(utc_secs, utc_nanos)).into()
+    }
+
+    #[must_use]
+    pub fn from_utc_dec(utc_dec: Decimal, tz: Tz) -> Self {
+        let utc_secs = utc_dec.trunc();
+        let utc_nanos = ((utc_dec - utc_secs) * dec!(1000000000)).trunc();
+        Self::from_utc_timestamp(utc_secs.to_i64().unwrap(), utc_nanos.to_u32().unwrap(), tz)
+    }
+
+    #[must_use]
+    pub fn op(op: TOp, n: i64) -> TimeOp {
+        TimeOp::new(op, n)
+    }
+}
+
+/// String related functions
+impl Time {
     /// From format e.g. 2020/01/30
     pub fn from_ymd_str(s: &str, tz: Tz) -> Result<Self> {
         Self::from_local_date_str(s, "%Y/%m/%d", tz)
@@ -43,8 +70,8 @@ impl Time {
     }
 
     pub fn from_local_iso(s: &str, tz: Tz) -> Result<Self> {
-        let utc_secs = DateTime::parse_from_rfc3339(s)?.timestamp();
-        Ok(Self::from_utc_secs(utc_secs, tz))
+        let t = DateTime::parse_from_rfc3339(s)?;
+        Ok(Self::from_utc_timestamp(t.timestamp(), t.timestamp_subsec_nanos(), tz))
     }
 
     /// Take the naive datetime assumed to be in the given timezone, and
@@ -59,18 +86,25 @@ impl Time {
         Self::from_local_datetime(NaiveDateTime::parse_from_str(s, fmt)?, tz)
     }
 
-    pub fn from_date(d: impl Into<chrono::Date<Tz>>) -> Self {
-        Self { t: d.into().and_hms(0, 0, 0) }
-    }
-
-    #[must_use]
-    pub fn from_utc_secs(utc_secs: i64, tz: Tz) -> Self {
-        tz.from_utc_datetime(&NaiveDateTime::from_timestamp(utc_secs, 0)).into()
-    }
-
     #[must_use]
     pub fn to_iso(self) -> String {
         self.t.to_rfc3339()
+    }
+}
+
+/// Accessors and conversions
+impl Time {
+    #[must_use]
+    pub fn utc_f64(self) -> f64 {
+        self.utc_dec().to_f64().unwrap()
+    }
+
+    #[must_use]
+    pub fn utc_dec(&self) -> Decimal {
+        let wtz = self.t.with_timezone(&UTC);
+        let secs = wtz.timestamp();
+        let nanos = wtz.timestamp_subsec_nanos() as i64;
+        Decimal::new(secs, 0) + Decimal::new(nanos, 9)
     }
 
     #[must_use]
@@ -94,6 +128,39 @@ impl Time {
     }
 
     #[must_use]
+    pub fn day(&self) -> u32 {
+        self.t.day()
+    }
+
+    #[must_use]
+    pub fn year(&self) -> i32 {
+        self.t.year()
+    }
+
+    #[must_use]
+    pub fn weekday(&self) -> Day {
+        self.date().weekday()
+    }
+
+    #[must_use]
+    pub fn month_name(&self) -> String {
+        self.date().month_name()
+    }
+
+    #[must_use]
+    pub fn month0(&self) -> u32 {
+        self.t.month0()
+    }
+
+    #[must_use]
+    pub fn month(&self) -> u32 {
+        self.t.month()
+    }
+}
+
+/// Time and date operations
+impl Time {
+    #[must_use]
     pub fn with_date(&self, d: impl Into<chrono::Date<Tz>>) -> Self {
         let d = d.into();
         let mut t = self.t.time();
@@ -116,18 +183,33 @@ impl Time {
     }
 
     #[must_use]
-    pub fn as_f64(self) -> f64 {
-        self.utc_secs() as f64
+    pub fn with_nanos(self, ns: u32) -> Self {
+        self.t.with_nanosecond(ns).unwrap().into()
     }
 
     #[must_use]
-    pub fn utc_secs(&self) -> i64 {
-        self.t.with_timezone(&UTC).timestamp()
+    pub fn add_nanos(self, ns: i64) -> Self {
+        (self.t + chrono::Duration::nanoseconds(ns)).into()
     }
 
     #[must_use]
-    pub fn op(op: TOp, n: i64) -> TimeOp {
-        TimeOp::new(op, n)
+    pub fn with_micros(self, us: u32) -> Self {
+        self.t.with_nanosecond(us * 1000).unwrap().into()
+    }
+
+    #[must_use]
+    pub fn add_micros(self, us: i64) -> Self {
+        (self.t + chrono::Duration::microseconds(us)).into()
+    }
+
+    #[must_use]
+    pub fn with_millis(self, ms: u32) -> Self {
+        self.t.with_nanosecond(ms * 1000 * 1000).unwrap().into()
+    }
+
+    #[must_use]
+    pub fn add_millis(self, ms: i64) -> Self {
+        (self.t + chrono::Duration::milliseconds(ms)).into()
     }
 
     #[must_use]
@@ -161,11 +243,6 @@ impl Time {
     }
 
     #[must_use]
-    pub fn day(&self) -> u32 {
-        self.t.day()
-    }
-
-    #[must_use]
     pub fn with_day(self, d: u32) -> Self {
         self.with_date(self.date().with_day(d))
     }
@@ -176,26 +253,6 @@ impl Time {
     }
 
     #[must_use]
-    pub fn weekday(&self) -> Day {
-        self.date().weekday()
-    }
-
-    #[must_use]
-    pub fn month_name(&self) -> String {
-        self.date().month_name()
-    }
-
-    #[must_use]
-    pub fn month0(&self) -> u32 {
-        self.t.month0()
-    }
-
-    #[must_use]
-    pub fn month(&self) -> u32 {
-        self.t.month()
-    }
-
-    #[must_use]
     pub fn with_month(self, m: u32) -> Self {
         self.with_date(self.date().with_month(m))
     }
@@ -203,11 +260,6 @@ impl Time {
     #[must_use]
     pub fn add_months(self, m: i32) -> Self {
         self.with_date(self.date().add_months(m))
-    }
-
-    #[must_use]
-    pub fn year(&self) -> i32 {
-        self.t.year()
     }
 
     #[must_use]
@@ -265,7 +317,7 @@ impl From<&Date> for Time {
 
 impl From<Time> for f64 {
     fn from(v: Time) -> Self {
-        v.as_f64()
+        v.utc_f64()
     }
 }
 
@@ -273,7 +325,7 @@ impl Sub<Time> for Time {
     type Output = Duration;
 
     fn sub(self, t: Time) -> Self::Output {
-        Duration::new(self.utc_secs() - t.utc_secs())
+        (self.utc_dec() - t.utc_dec()) * SEC
     }
 }
 
@@ -281,7 +333,7 @@ impl Sub<Duration> for Time {
     type Output = Time;
 
     fn sub(self, d: Duration) -> Self::Output {
-        Self::from_utc_secs(self.utc_secs() - d.secs(), self.t.timezone())
+        Self::from_utc_dec(self.utc_dec() - d.secs(), self.t.timezone())
     }
 }
 
@@ -295,7 +347,7 @@ impl Add<Duration> for Time {
     type Output = Time;
 
     fn add(self, d: Duration) -> Self::Output {
-        Self::from_utc_secs(self.utc_secs() + d.secs(), self.t.timezone())
+        Self::from_utc_dec(self.utc_dec() + d.secs(), self.t.timezone())
     }
 }
 
@@ -344,15 +396,15 @@ impl Serialize for Time {
 
 impl ToPrimitive for Time {
     fn to_i64(&self) -> Option<i64> {
-        Some(self.utc_secs())
+        self.utc_dec().to_i64()
     }
 
     fn to_u64(&self) -> Option<u64> {
-        self.utc_secs().to_u64()
+        self.utc_dec().to_u64()
     }
 
     fn to_f64(&self) -> Option<f64> {
-        Some(Time::as_f64(*self))
+        Some(Time::utc_f64(*self))
     }
 }
 
@@ -423,6 +475,6 @@ mod tests {
     fn tz_change() {
         let time = Time::new(Sydney.ymd(2018, 1, 30).and_hms(6, 4, 57));
         // This shouldn't change the underlying time, just the timezone it's in.
-        assert_eq!(time.utc_secs(), time.with_tz(Eastern).utc_secs());
+        assert_eq!(time.utc_dec(), time.with_tz(Eastern).utc_dec());
     }
 }
