@@ -51,6 +51,11 @@ impl Time {
     }
 
     #[must_use]
+    pub fn from_utc_f64(utc_f64: f64, tz: Tz) -> Self {
+        Self::from_utc_dec(utc_f64.try_into().unwrap(), tz)
+    }
+
+    #[must_use]
     pub fn op(op: TOp, n: i64) -> TimeOp {
         TimeOp::new(op, n)
     }
@@ -100,11 +105,15 @@ impl Time {
     }
 
     #[must_use]
-    pub fn utc_dec(&self) -> Decimal {
+    pub fn utc_timestamp(&self) -> (i64, u32) {
         let wtz = self.t.with_timezone(&UTC);
-        let secs = wtz.timestamp();
-        let nanos = wtz.timestamp_subsec_nanos() as i64;
-        Decimal::new(secs, 0) + Decimal::new(nanos, 9)
+        (wtz.timestamp(), wtz.timestamp_subsec_nanos())
+    }
+
+    #[must_use]
+    pub fn utc_dec(&self) -> Decimal {
+        let (secs, nanos) = self.utc_timestamp();
+        Decimal::new(secs, 0) + Decimal::new(nanos as i64, 9)
     }
 
     #[must_use]
