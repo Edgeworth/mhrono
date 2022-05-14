@@ -1,39 +1,59 @@
+use std::fmt::Write;
 use std::lazy::SyncLazy;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 
 use derive_more::Display;
 use eyre::{eyre, Result};
 use num_traits::ToPrimitive;
-use rand::distributions::uniform::{SampleBorrow, SampleUniform, UniformInt, UniformSampler};
+use rand::distributions::uniform::{SampleBorrow, SampleUniform, UniformFloat, UniformSampler};
 use rand::prelude::*;
 use regex::Regex;
+use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 
-const BASES: &[(&str, Duration)] = &[("w", WEEK), ("d", DAY), ("h", HOUR), ("m", MIN), ("s", SEC)];
+const BASES: &[(&str, Duration)] = &[
+    ("w", WEEK),
+    ("d", DAY),
+    ("h", HOUR),
+    ("m", MIN),
+    ("s", SEC),
+    ("ms", MSEC),
+    ("us", USEC),
+    ("ns", NSEC),
+    ("ps", PSEC),
+    ("fs", FSEC),
+    ("as", ASEC),
+];
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Display, Ord, PartialOrd)]
 #[display(fmt = "{}", "self.human()")]
 pub struct Duration {
-    secs: i64,
+    secs: Decimal,
 }
 
 impl Duration {
     #[must_use]
-    pub const fn new(d: i64) -> Self {
-        Self { secs: d }
+    pub const fn new(secs: Decimal) -> Self {
+        Self { secs }
     }
 
     #[must_use]
     pub const fn zero() -> Self {
-        Self { secs: 0 }
+        Self { secs: dec!(0) }
     }
 
     #[must_use]
-    pub const fn as_f64(self) -> f64 {
-        self.secs as f64
+    pub const fn is_zero(&self) -> bool {
+        self.secs.is_zero()
     }
 
     #[must_use]
-    pub const fn secs(&self) -> i64 {
+    pub fn secs_f64(self) -> f64 {
+        self.secs.to_f64().unwrap()
+    }
+
+    #[must_use]
+    pub const fn secs(&self) -> Decimal {
         self.secs
     }
 
@@ -41,12 +61,16 @@ impl Duration {
     pub fn human(&self) -> String {
         let mut rem = *self;
         let mut human = String::new();
-        for (s, dur) in BASES.iter() {
-            let div = (rem / *dur) as i64;
-            rem -= *dur * div;
-            if div > 0 {
-                human += &format!("{}{}", div, s);
+        for &(s, dur) in BASES {
+            let div = (rem / dur).trunc();
+            rem -= dur * div;
+            if !div.is_zero() {
+                let _ = write!(human, "{}{}", div, s);
             }
+        }
+        // Some sub-attosecond duration...
+        if !rem.is_zero() {
+            let _ = write!(human, "...");
         }
         human
     }
@@ -102,27 +126,11 @@ impl SubAssign<Duration> for Duration {
     }
 }
 
-impl Mul<f64> for Duration {
-    type Output = Duration;
-
-    fn mul(self, o: f64) -> Self::Output {
-        Self::new((self.as_f64() * o) as i64)
-    }
-}
-
-impl Div<f64> for Duration {
-    type Output = Duration;
-
-    fn div(self, o: f64) -> Self::Output {
-        Self::new((self.as_f64() / o) as i64)
-    }
-}
-
 impl Div<Duration> for Duration {
-    type Output = f64;
+    type Output = Decimal;
 
     fn div(self, o: Duration) -> Self::Output {
-        self.as_f64() / o.as_f64()
+        self.secs / o.secs
     }
 }
 
@@ -130,7 +138,7 @@ macro_rules! duration_ops {
     ($t:ty) => {
         impl MulAssign<$t> for Duration {
             fn mul_assign(&mut self, rhs: $t) {
-                self.secs *= rhs as i64;
+                self.secs *= Decimal::try_from(rhs).unwrap();
             }
         }
 
@@ -138,7 +146,7 @@ macro_rules! duration_ops {
             type Output = Duration;
 
             fn mul(self, rhs: $t) -> Self::Output {
-                Self::new(self.secs * rhs as i64)
+                Self::new(self.secs * Decimal::try_from(rhs).unwrap())
             }
         }
 
@@ -146,13 +154,13 @@ macro_rules! duration_ops {
             type Output = Duration;
 
             fn mul(self, rhs: Duration) -> Self::Output {
-                Duration::new(self as i64 * rhs.secs)
+                Duration::new(Decimal::try_from(self).unwrap() * rhs.secs)
             }
         }
 
         impl DivAssign<$t> for Duration {
             fn div_assign(&mut self, rhs: $t) {
-                self.secs /= rhs as i64;
+                self.secs /= Decimal::try_from(rhs).unwrap();
             }
         }
 
@@ -160,17 +168,18 @@ macro_rules! duration_ops {
             type Output = Duration;
 
             fn div(self, rhs: $t) -> Self::Output {
-                Self::new(self.secs / rhs as i64)
+                Self::new(self.secs / Decimal::try_from(rhs).unwrap())
             }
         }
     };
 }
 
 duration_ops!(i64);
+duration_ops!(Decimal);
 
 impl ToPrimitive for Duration {
     fn to_i64(&self) -> Option<i64> {
-        Some(self.secs())
+        self.secs().to_i64()
     }
 
     fn to_u64(&self) -> Option<u64> {
@@ -178,11 +187,11 @@ impl ToPrimitive for Duration {
     }
 
     fn to_f64(&self) -> Option<f64> {
-        Some(Duration::as_f64(*self))
+        Some(self.secs_f64())
     }
 }
 
-pub struct UniformDuration(UniformInt<i64>);
+pub struct UniformDuration(UniformFloat<f64>);
 
 impl UniformSampler for UniformDuration {
     type X = Duration;
@@ -192,7 +201,7 @@ impl UniformSampler for UniformDuration {
         B1: SampleBorrow<Self::X> + Sized,
         B2: SampleBorrow<Self::X> + Sized,
     {
-        UniformDuration(UniformInt::<i64>::new(low.borrow().secs(), high.borrow().secs()))
+        UniformDuration(UniformFloat::<f64>::new(low.borrow().secs_f64(), high.borrow().secs_f64()))
     }
 
     fn new_inclusive<B1, B2>(low: B1, high: B2) -> Self
@@ -200,11 +209,14 @@ impl UniformSampler for UniformDuration {
         B1: SampleBorrow<Self::X> + Sized,
         B2: SampleBorrow<Self::X> + Sized,
     {
-        UniformDuration(UniformInt::<i64>::new_inclusive(low.borrow().secs(), high.borrow().secs()))
+        UniformDuration(UniformFloat::<f64>::new_inclusive(
+            low.borrow().secs_f64(),
+            high.borrow().secs_f64(),
+        ))
     }
 
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Self::X {
-        Duration::new(self.0.sample(rng))
+        Duration::new(self.0.sample(rng).try_into().unwrap())
     }
 }
 
@@ -212,11 +224,17 @@ impl SampleUniform for Duration {
     type Sampler = UniformDuration;
 }
 
-pub const SEC: Duration = Duration::new(1);
-pub const MIN: Duration = Duration::new(60);
-pub const HOUR: Duration = Duration::new(60 * 60);
-pub const DAY: Duration = Duration::new(24 * 60 * 60);
-pub const WEEK: Duration = Duration::new(24 * 60 * 60 * 7);
+pub const ASEC: Duration = Duration::new(dec!(0.000000000000000001));
+pub const FSEC: Duration = Duration::new(dec!(0.000000000000001));
+pub const PSEC: Duration = Duration::new(dec!(0.000000000001));
+pub const NSEC: Duration = Duration::new(dec!(0.000000001));
+pub const USEC: Duration = Duration::new(dec!(0.000001));
+pub const MSEC: Duration = Duration::new(dec!(0.001));
+pub const SEC: Duration = Duration::new(dec!(1));
+pub const MIN: Duration = Duration::new(dec!(60));
+pub const HOUR: Duration = Duration::new(dec!(3600));
+pub const DAY: Duration = Duration::new(dec!(86400));
+pub const WEEK: Duration = Duration::new(dec!(604800));
 
 #[cfg(test)]
 mod tests {
@@ -224,7 +242,17 @@ mod tests {
 
     #[test]
     fn human() {
+        assert_eq!("...", Duration::new(Decimal::new(1, 26)).human());
+        assert_eq!("1as", ASEC.human());
+        assert_eq!("1fs", FSEC.human());
+        assert_eq!("1ps", PSEC.human());
+        assert_eq!("1ns", NSEC.human());
+        assert_eq!("1us", USEC.human());
+        assert_eq!("1ms", MSEC.human());
         assert_eq!("1s", SEC.human());
+        assert_eq!("1s1ms", (SEC + MSEC).human());
+        assert_eq!("1s1ms1us", (SEC + MSEC + USEC).human());
+        assert_eq!("1s1ms1us1ns", (SEC + MSEC + USEC + NSEC).human());
         assert_eq!("1m", MIN.human());
         assert_eq!("1h", HOUR.human());
         assert_eq!("1d", DAY.human());
@@ -236,7 +264,16 @@ mod tests {
 
     #[test]
     fn from_human() -> Result<()> {
+        assert_eq!(Duration::from_human("1as")?, ASEC);
+        assert_eq!(Duration::from_human("1fs")?, FSEC);
+        assert_eq!(Duration::from_human("1ps")?, PSEC);
+        assert_eq!(Duration::from_human("1ns")?, NSEC);
+        assert_eq!(Duration::from_human("1us")?, USEC);
+        assert_eq!(Duration::from_human("1ms")?, MSEC);
         assert_eq!(Duration::from_human("1s")?, SEC);
+        assert_eq!(Duration::from_human("1s1ms")?, (SEC + MSEC));
+        assert_eq!(Duration::from_human("1s1ms1us")?, (SEC + MSEC + USEC));
+        assert_eq!(Duration::from_human("1s1ms1us1ns")?, (SEC + MSEC + USEC + NSEC));
         assert_eq!(Duration::from_human("1m")?, MIN);
         assert_eq!(Duration::from_human("1h")?, HOUR);
         assert_eq!(Duration::from_human("1d")?, DAY);

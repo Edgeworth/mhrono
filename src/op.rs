@@ -33,9 +33,15 @@ pub enum TOp {
     AddHours,
     AddMins,
     AddSecs,
+    AddMillis,
+    AddMicros,
+    AddNanos,
     SetHour,
     SetMin,
     SetSec,
+    SetMillis,
+    SetMicros,
+    SetNanos,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Ord, PartialOrd)]
@@ -56,9 +62,15 @@ impl TimeOp {
             TOp::AddHours => t.add_hours(self.n),
             TOp::AddMins => t.add_mins(self.n),
             TOp::AddSecs => t.add_secs(self.n),
+            TOp::AddMillis => t.add_millis(self.n),
+            TOp::AddMicros => t.add_micros(self.n),
+            TOp::AddNanos => t.add_nanos(self.n),
             TOp::SetHour => t.with_hour(self.n as u32),
             TOp::SetMin => t.with_min(self.n as u32),
             TOp::SetSec => t.with_sec(self.n as u32),
+            TOp::SetMillis => t.with_millis(self.n as u32),
+            TOp::SetMicros => t.with_micros(self.n as u32),
+            TOp::SetNanos => t.with_nanos(self.n as u32),
             _ => t.with_date(apply_dop(
                 t.date(),
                 FromPrimitive::from_i32(self.op as i32).unwrap(),
