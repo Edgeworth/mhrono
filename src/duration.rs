@@ -58,6 +58,13 @@ impl Duration {
     }
 
     #[must_use]
+    pub fn to_chrono(&self) -> std::time::Duration {
+        let secs = self.secs.trunc();
+        let nanos = ((self.secs - secs) * dec!(1000000000)).trunc();
+        std::time::Duration::new(secs.to_u64().unwrap(), nanos.to_u64().unwrap() as u32)
+    }
+
+    #[must_use]
     pub fn human(&self) -> String {
         let mut rem = *self;
         let mut human = String::new();

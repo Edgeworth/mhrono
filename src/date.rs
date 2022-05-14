@@ -53,6 +53,11 @@ impl Date {
     }
 
     #[must_use]
+    pub fn format(&self, f: &str) -> String {
+        self.d.format(f).to_string()
+    }
+
+    #[must_use]
     pub fn inner(&self) -> chrono::Date<Tz> {
         self.d
     }

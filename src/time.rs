@@ -92,8 +92,13 @@ impl Time {
     }
 
     #[must_use]
-    pub fn to_iso(self) -> String {
+    pub fn to_iso(&self) -> String {
         self.t.to_rfc3339()
+    }
+
+    #[must_use]
+    pub fn format(&self, f: &str) -> String {
+        self.t.format(f).to_string()
     }
 }
 
