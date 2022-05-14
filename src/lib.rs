@@ -39,7 +39,7 @@
 #![feature(once_cell, trait_alias)]
 
 pub mod calendars;
-pub mod cycle;
+pub mod cycles;
 pub mod date;
 pub mod duration;
 pub mod freq;
