@@ -36,11 +36,13 @@
     clippy::too_many_lines,
     clippy::unreadable_literal
 )]
-#![feature(bool_to_option, once_cell, trait_alias)]
+#![feature(once_cell, trait_alias)]
 
 pub mod calendars;
+pub mod cycle;
 pub mod date;
 pub mod duration;
+pub mod freq;
 pub mod iter;
 pub mod op;
 pub mod span;
