@@ -89,3 +89,10 @@ impl<T: PartialOrd + Copy + Sub> Span<T> {
         self.en - self.st
     }
 }
+
+impl<T: PartialOrd + Copy + Default> Span<T> {
+    #[must_use]
+    pub fn empty() -> Self {
+        Self::new(T::default(), T::default())
+    }
+}

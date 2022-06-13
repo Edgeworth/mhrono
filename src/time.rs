@@ -65,7 +65,8 @@ impl Time {
 impl Time {
     /// From format e.g. 2020/01/30
     pub fn from_ymd(s: &str, tz: Tz) -> Result<Self> {
-        Self::from_local_date_fmt(s, "%Y/%m/%d", tz)
+        Self::from_local_date_fmt(s, "%Y-%m-%d", tz)
+            .or_else(|_| Self::from_local_date_fmt(s, "%Y/%m/%d", tz))
     }
 
     pub fn from_ymd_fmt(s: &str, fmt: &str, tz: Tz) -> Result<Self> {
@@ -431,6 +432,7 @@ mod tests {
     use chrono::NaiveDateTime;
     use chrono_tz::Australia::Sydney;
     use chrono_tz::US::Eastern;
+    use pretty_assertions::assert_eq;
 
     use super::*;
 
