@@ -169,6 +169,7 @@ impl SpanOp {
 mod tests {
     use chrono::TimeZone;
     use chrono_tz::{Australia, Tz, US, UTC};
+    use pretty_assertions::assert_eq;
 
     use super::*;
 
