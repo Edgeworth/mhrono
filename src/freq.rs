@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 
@@ -7,6 +8,8 @@ use eyre::Result;
 use num_traits::ToPrimitive;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
+use serde::de::{self, Visitor};
+use serde::{ser, Deserialize, Serialize};
 
 use crate::cycles::Cycles;
 use crate::duration::{
@@ -198,6 +201,35 @@ impl ToPrimitive for Freq {
     }
 }
 
+impl<'a> Deserialize<'a> for Freq {
+    fn deserialize<D: serde::Deserializer<'a>>(d: D) -> Result<Self, D::Error> {
+        struct FreqVisitor;
+
+        impl Visitor<'_> for FreqVisitor {
+            type Value = Freq;
+
+            fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.write_str("frequency")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Freq, E>
+            where
+                E: de::Error,
+            {
+                Freq::from_human(v).map_err(E::custom)
+            }
+        }
+
+        d.deserialize_string(FreqVisitor)
+    }
+}
+
+impl Serialize for Freq {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(&self.human().map_err(ser::Error::custom)?)
+    }
+}
+
 pub const ASECLY: Freq = Freq::new(Cycles::one(), ASEC);
 pub const FSECLY: Freq = Freq::new(Cycles::one(), FSEC);
 pub const PSECLY: Freq = Freq::new(Cycles::one(), PSEC);
@@ -209,3 +241,21 @@ pub const MINLY: Freq = Freq::new(Cycles::one(), MIN);
 pub const HOURLY: Freq = Freq::new(Cycles::one(), HOUR);
 pub const DAILY: Freq = Freq::new(Cycles::one(), DAY);
 pub const WEEKLY: Freq = Freq::new(Cycles::one(), WEEK);
+
+#[cfg(test)]
+mod tests {
+
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[test]
+    fn serialization() -> Result<()> {
+        let freq = DAILY;
+        let se = serde_json::to_string(&freq)?;
+        assert_eq!(se, "\"1d\"");
+        let de: Freq = serde_json::from_str(&se)?;
+        assert_eq!(de, freq);
+        Ok(())
+    }
+}

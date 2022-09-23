@@ -1,6 +1,7 @@
+use std::fmt;
 use std::fmt::Write;
-use std::lazy::SyncLazy;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
+use std::sync::LazyLock;
 
 use derive_more::Display;
 use eyre::{eyre, Result};
@@ -10,6 +11,8 @@ use rand::prelude::*;
 use regex::Regex;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
+use serde::de::{self, Visitor};
+use serde::{ser, Deserialize, Serialize};
 
 pub const BASES: &[(&str, Duration)] = &[
     ("w", WEEK),
@@ -87,7 +90,7 @@ impl Duration {
     }
 
     pub fn from_human(s: &str) -> Result<Duration> {
-        static RE: SyncLazy<Regex> = SyncLazy::new(|| Regex::new(r"(\d+)([a-z]+)").unwrap());
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(\d+)([a-z]+)").unwrap());
         let mut dur = Duration::zero();
         for caps in RE.captures_iter(s) {
             let caps: Vec<_> = caps.iter().collect();
@@ -235,6 +238,35 @@ impl SampleUniform for Duration {
     type Sampler = UniformDuration;
 }
 
+impl<'a> Deserialize<'a> for Duration {
+    fn deserialize<D: serde::Deserializer<'a>>(d: D) -> Result<Self, D::Error> {
+        struct DurationVisitor;
+
+        impl Visitor<'_> for DurationVisitor {
+            type Value = Duration;
+
+            fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.write_str("frequency")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Duration, E>
+            where
+                E: de::Error,
+            {
+                Duration::from_human(v).map_err(E::custom)
+            }
+        }
+
+        d.deserialize_string(DurationVisitor)
+    }
+}
+
+impl Serialize for Duration {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(&self.human().map_err(ser::Error::custom)?)
+    }
+}
+
 pub const ASEC: Duration = Duration::new(dec!(0.000000000000000001));
 pub const FSEC: Duration = Duration::new(dec!(0.000000000000001));
 pub const PSEC: Duration = Duration::new(dec!(0.000000000001));
@@ -255,7 +287,7 @@ mod tests {
 
     #[test]
     fn human() -> Result<()> {
-        assert_eq!("...", Duration::new(Decimal::new(1, 26)).human()?);
+        assert!(Duration::new(Decimal::new(1, 26)).human().is_err());
         assert_eq!("1as", ASEC.human()?);
         assert_eq!("1fs", FSEC.human()?);
         assert_eq!("1ps", PSEC.human()?);
@@ -295,6 +327,16 @@ mod tests {
         assert_eq!(Duration::from_human("5m")?, (5 * MIN));
         assert_eq!(Duration::from_human("15m")?, (15 * MIN));
         assert_eq!(Duration::from_human("15m7s")?, (15 * MIN + 7 * SEC));
+        Ok(())
+    }
+
+    #[test]
+    fn serialization() -> Result<()> {
+        let dur = DAY;
+        let se = serde_json::to_string(&dur)?;
+        assert_eq!(se, "\"1d\"");
+        let de: Duration = serde_json::from_str(&se)?;
+        assert_eq!(de, dur);
         Ok(())
     }
 }
