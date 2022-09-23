@@ -16,6 +16,8 @@ use crate::date::{Date, Day};
 use crate::duration::{Duration, SEC};
 use crate::op::{TOp, TimeOp};
 
+pub const LOCAL_FMT: &str = "%Y-%m-%dT%H:%M:%S%.f";
+
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Display, Ord, PartialOrd)]
 #[display(fmt = "{}", t)]
 pub struct Time {
@@ -79,9 +81,15 @@ impl Time {
         Ok(Self::from_date(d))
     }
 
+    /// From a local time in ISO RFC3339 format.
     pub fn from_local_iso(s: &str, tz: Tz) -> Result<Self> {
         let t = DateTime::parse_from_rfc3339(s)?;
         Ok(Self::from_utc_timestamp(t.timestamp(), t.timestamp_subsec_nanos(), tz))
+    }
+
+    /// From a local time.
+    pub fn from_local(s: &str, tz: Tz) -> Result<Self> {
+        Self::from_local_datetime_fmt(s, LOCAL_FMT, tz)
     }
 
     /// Take the naive datetime assumed to be in the given timezone, and
@@ -99,6 +107,11 @@ impl Time {
     #[must_use]
     pub fn to_iso(&self) -> String {
         self.t.to_rfc3339()
+    }
+
+    #[must_use]
+    pub fn to_local(&self) -> String {
+        self.t.format(LOCAL_FMT).to_string()
     }
 
     #[must_use]
@@ -392,13 +405,11 @@ impl<'a> Deserialize<'a> for Time {
                 E: de::Error,
             {
                 let mut s = v.split_whitespace();
-                let iso8601 = s
-                    .next()
-                    .ok_or_else(|| eyre!("missing iso8601 timestamp"))
-                    .map_err(E::custom)?;
+                let local =
+                    s.next().ok_or_else(|| eyre!("missing timestamp")).map_err(E::custom)?;
                 let tz = s.next().ok_or_else(|| eyre!("missing timezone")).map_err(E::custom)?;
                 let tz = Tz::from_str(tz).map_err(E::custom)?;
-                let time = Time::from_local_iso(iso8601, tz).map_err(E::custom)?;
+                let time = Time::from_local(local, tz).map_err(E::custom)?;
                 Ok(time)
             }
         }
@@ -409,7 +420,7 @@ impl<'a> Deserialize<'a> for Time {
 
 impl Serialize for Time {
     fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        s.serialize_str(&(self.to_iso() + " " + self.tz().name()))
+        s.serialize_str(&(self.to_local() + " " + self.tz().name()))
     }
 }
 
@@ -484,10 +495,24 @@ mod tests {
     }
 
     #[test]
-    fn iso_tz_conversion() -> Result<()> {
-        let expected = Time::new(Sydney.ymd(2018, 1, 30).and_hms(6, 4, 57));
-        assert_eq!(expected, Time::from_local_iso("2018-01-30T06:04:57+11:00", Sydney)?);
-        assert_eq!(expected, Time::from_local_iso(&expected.to_iso(), Sydney)?);
+    fn tz_conversion() -> Result<()> {
+        let dt = Time::new(Sydney.ymd(2018, 1, 30).and_hms(6, 4, 57));
+        assert_eq!(dt, Time::from_local_iso("2018-01-30T06:04:57+11:00", Sydney)?);
+        assert_eq!(dt, Time::from_local("2018-01-30T06:04:57", Sydney)?);
+        assert_eq!("2018-01-30T06:04:57+11:00", dt.to_iso());
+        assert_eq!("2018-01-30T06:04:57", dt.to_local());
+        assert_eq!(dt, Time::from_local_iso(&dt.to_iso(), Sydney)?);
+        assert_eq!(dt, Time::from_local(&dt.to_local(), Sydney)?);
+        Ok(())
+    }
+
+    #[test]
+    fn serialization() -> Result<()> {
+        let dt = Time::new(Sydney.ymd(2018, 1, 30).and_hms(6, 4, 57));
+        let se = serde_json::to_string(&dt)?;
+        assert_eq!(se, "\"2018-01-30T06:04:57 Australia/Sydney\"");
+        let de: Time = serde_json::from_str(&se)?;
+        assert_eq!(de, dt);
         Ok(())
     }
 

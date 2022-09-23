@@ -1,4 +1,4 @@
-use std::lazy::SyncLazy;
+use std::sync::LazyLock;
 
 use chrono::TimeZone;
 use chrono_tz::US::Eastern;
@@ -104,7 +104,7 @@ use crate::time::Time;
 // nor was it closed on Friday December 26, 2014. The next Thursday Christmas
 // will be in 2025.
 
-static NYSE_SPECIAL: SyncLazy<DaySet> = SyncLazy::new(|| {
+static NYSE_SPECIAL: LazyLock<DaySet> = LazyLock::new(|| {
     DaySet::new().with_adhoc(&[
         Eastern.ymd(1997, 12, 26),
         Eastern.ymd(1999, 12, 31),
