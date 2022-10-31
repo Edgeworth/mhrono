@@ -19,7 +19,7 @@ impl CachedCalendar {
 
         let mut cur_t = span.st;
         while cur_t < span.en {
-            if let Some(next) = cal.next_span(cur_t) {
+            if let Some(next) = cal.next_span(cur_t.p) {
                 spans.push(next);
                 cur_t = next.en;
             } else {

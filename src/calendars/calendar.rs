@@ -24,25 +24,25 @@ impl RangeCache {
     }
 
     fn contains(&mut self, d: Date, r: &mut impl Ranger) -> bool {
-        self.ensure_range(Span::new(d, d.add_days(1)), r);
+        self.ensure_range(Span::point(d), r);
         self.cache.contains(&d)
     }
 
     fn get_range(&mut self, s: Span<Date>, r: &mut impl Ranger) -> Range<'_, Date> {
         self.ensure_range(s, r);
-        self.cache.range(s.st..s.en)
+        self.cache.range(s.range())
     }
 
     fn ensure_range(&mut self, s: Span<Date>, r: &mut impl Ranger) {
         if !self.computed.contains_span(&s) {
-            self.computed = Span::cover(self.computed, s);
-            let years = 20.max(self.computed.en.year() - self.computed.st.year() + 1);
+            self.computed = Span::cover(&self.computed, &s);
+            let years = 20.max(self.computed.en.p.year() - self.computed.st.p.year() + 1);
             // Expand on left or right if we bumped up against it.
             if s.st == self.computed.st {
-                self.computed.st = self.computed.st.add_years(-years);
+                self.computed.st.p = self.computed.st.p.add_years(-years);
             }
             if s.en == self.computed.en {
-                self.computed.en = self.computed.en.add_years(years);
+                self.computed.en.p = self.computed.en.p.add_years(years);
             }
             // TODO: only call append_range for changed bits
             r.append_range(self.computed, &mut self.cache);
@@ -244,11 +244,11 @@ impl UncachedDaySet {
 impl Ranger for UncachedDaySet {
     fn append_range<T: Into<Span<Date>>>(&mut self, s: T, v: &mut BTreeSet<Date>) {
         let s = s.into();
-        let (st, en) = (s.st, s.en);
+        let (st, en) = (s.st.p, s.en.p);
         // Account for observances going 1 year into the past or future. This keeps month and day stable too.
         let sty = self.st.map_or(st.year(), |v| v.year().max(st.year())) - 1;
         let iter_en = en.with_year(self.en.map_or(en.year(), |v| v.year().min(en.year())) + 1);
-        let s = Span::new(self.st.map_or(st, |v| v.max(st)), self.en.map_or(en, |v| v.min(en)));
+        let s = Span::exc(self.st.map_or(st, |v| v.max(st)), self.en.map_or(en, |v| v.min(en)));
         if let Some((m, d)) = self.md {
             let iter_st: Date = st.tz().ymd(sty, m, d).into();
             self.iter_span(s, DateIter::year(iter_st, iter_en), v);

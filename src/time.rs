@@ -2,7 +2,7 @@ use std::fmt;
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 use std::str::FromStr;
 
-use chrono::{DateTime, Datelike, LocalResult, NaiveDate, NaiveDateTime, TimeZone, Timelike};
+use chrono::{DateTime, Datelike, LocalResult, NaiveDate, NaiveDateTime, TimeZone, Timelike, Utc};
 use chrono_tz::{Tz, UTC};
 use derive_more::Display;
 use eyre::{eyre, Result};
@@ -29,6 +29,10 @@ pub struct Time {
 impl Time {
     pub const fn new(t: DateTime<Tz>) -> Self {
         Self { t }
+    }
+
+    pub fn now_utc() -> Self {
+        Self::new(UTC.from_utc_datetime(&Utc::now().naive_utc()))
     }
 
     pub fn zero(tz: Tz) -> Self {
