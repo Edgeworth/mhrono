@@ -26,7 +26,7 @@ fn calendar(c: &mut Criterion) {
     g.bench_with_input(BenchmarkId::new("range", iter.clone()), &iter, |b, iter| {
         b.iter(|| {
             for t in iter.clone() {
-                black_box(nyse.next_span(t.into()).unwrap());
+                let _ = black_box(nyse.next_span(t.into()).unwrap());
             }
         })
     });

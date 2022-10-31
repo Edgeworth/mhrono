@@ -4,8 +4,9 @@ use crate::date::Date;
 use crate::op::{DOp, DateOp, TimeOp};
 use crate::time::Time;
 
+#[must_use]
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Display)]
-#[display(fmt = "[{}, {:?})", t, en)]
+#[display(fmt = "[{t}, {en:?})")]
 pub struct TimeIter {
     t: Time,
     en: Time,
@@ -33,8 +34,9 @@ impl Iterator for TimeIter {
 }
 
 // Date iterator that is exclusive (doesn't include the endpoint).
+#[must_use]
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Display)]
-#[display(fmt = "[{}, {:?})", d, en)]
+#[display(fmt = "[{d}, {en:?})")]
 pub struct DateIter {
     d: Date,
     en: Date,

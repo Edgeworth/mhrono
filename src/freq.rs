@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
+use std::str::FromStr;
 
 use derive_more::Display;
 use eyre::Result;
@@ -17,6 +18,7 @@ use crate::duration::{
 };
 
 /// Number of times something happens in a second. Hertz.
+#[must_use]
 #[derive(Debug, Eq, Copy, Clone, Display)]
 #[display(fmt = "{}", "self.human().unwrap_or_else(|_| format!(\"{}:{}\", self.num, self.denom))")]
 pub struct Freq {
@@ -56,13 +58,11 @@ impl PartialEq for Freq {
 }
 
 impl Freq {
-    #[must_use]
     pub const fn from_hz(hz: Decimal) -> Self {
         Self { num: hz, denom: dec!(1) }
     }
 
     /// |cycles| cycles per given duration.
-    #[must_use]
     pub const fn new(cyc: Cycles, dur: Duration) -> Self {
         Self { num: cyc.count(), denom: dur.secs() }
     }
@@ -79,7 +79,6 @@ impl Freq {
         self.denom
     }
 
-    #[must_use]
     pub fn cycle_duration(&self) -> Duration {
         Duration::new(self.denom / self.num)
     }
@@ -98,7 +97,7 @@ impl Freq {
         if self.num == dec!(1) {
             Ok(dur_human)
         } else {
-            Ok(format!("{}:{}", self.num, dur_human))
+            Ok(format!("{}:{dur_human}", self.num))
         }
     }
 
@@ -227,6 +226,14 @@ impl<'a> Deserialize<'a> for Freq {
 impl Serialize for Freq {
     fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         s.serialize_str(&self.human().map_err(ser::Error::custom)?)
+    }
+}
+
+impl FromStr for Freq {
+    type Err = eyre::Report;
+
+    fn from_str(s: &str) -> Result<Self> {
+        Self::from_human(s)
     }
 }
 

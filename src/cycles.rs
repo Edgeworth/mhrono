@@ -9,23 +9,21 @@ use crate::duration::Duration;
 use crate::freq::Freq;
 
 /// Number of occurrences of something.
+#[must_use]
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Display, Ord, PartialOrd)]
 pub struct Cycles {
     count: Decimal,
 }
 
 impl Cycles {
-    #[must_use]
     pub const fn new(count: Decimal) -> Self {
         Self { count }
     }
 
-    #[must_use]
     pub const fn zero() -> Self {
         Self { count: dec!(0) }
     }
 
-    #[must_use]
     pub const fn one() -> Self {
         Self { count: dec!(1) }
     }
@@ -35,7 +33,6 @@ impl Cycles {
         self.count
     }
 
-    #[must_use]
     pub fn from_count(count: i64) -> Self {
         Self { count: Decimal::new(count, 0) }
     }

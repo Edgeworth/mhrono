@@ -5,6 +5,7 @@ use num_traits::FromPrimitive;
 
 use crate::op::{DOp, DateOp};
 
+#[must_use]
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Ord, PartialOrd)]
 pub enum Day {
     Mon = 0,
@@ -16,8 +17,9 @@ pub enum Day {
     Sun = 6,
 }
 
+#[must_use]
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Display, Ord, PartialOrd)]
-#[display(fmt = "{}", d)]
+#[display(fmt = "{d}")]
 pub struct Date {
     d: chrono::Date<Tz>,
 }
@@ -47,7 +49,6 @@ impl From<Date> for chrono::Date<Tz> {
 }
 
 impl Date {
-    #[must_use]
     pub fn new(d: chrono::Date<Tz>) -> Self {
         Self { d }
     }
@@ -62,7 +63,6 @@ impl Date {
         self.d
     }
 
-    #[must_use]
     pub fn op(op: DOp, n: i64) -> DateOp {
         DateOp::new(op, n)
     }
@@ -77,22 +77,19 @@ impl Date {
         self.d.day()
     }
 
-    #[must_use]
     pub fn with_day(self, d: u32) -> Self {
         for max in (28..=31).rev() {
             if let Some(res) = self.d.with_day(d.clamp(1, max)) {
                 return res.into();
             }
         }
-        panic!("bug: invalid day {}", d);
+        panic!("bug: invalid day {d}");
     }
 
-    #[must_use]
     pub fn add_days(self, d: i32) -> Self {
         (self.d + chrono::Duration::days(i64::from(d))).into()
     }
 
-    #[must_use]
     pub fn weekday(&self) -> Day {
         match self.d.weekday() {
             chrono::Weekday::Mon => Day::Mon,
@@ -120,13 +117,11 @@ impl Date {
         self.d.month()
     }
 
-    #[must_use]
     pub fn with_month(self, m: u32) -> Self {
         let d = self.day();
         Self::new(self.with_day(1).d.with_month(m).unwrap()).with_day(d)
     }
 
-    #[must_use]
     pub fn add_months(self, add_m: i32) -> Self {
         let d = self.day();
         let total_m = self.month0() as i32 + add_m;
@@ -140,13 +135,11 @@ impl Date {
         self.d.year()
     }
 
-    #[must_use]
     pub fn with_year(self, y: i32) -> Self {
         let d = self.day();
         Self::new(self.with_day(1).d.with_year(y).unwrap()).with_day(d)
     }
 
-    #[must_use]
     pub fn add_years(self, y: i32) -> Self {
         self.with_year(self.year() + y)
     }

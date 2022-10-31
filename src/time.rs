@@ -18,20 +18,19 @@ use crate::op::{TOp, TimeOp};
 
 pub const LOCAL_FMT: &str = "%Y-%m-%dT%H:%M:%S%.f";
 
+#[must_use]
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Display, Ord, PartialOrd)]
-#[display(fmt = "{}", t)]
+#[display(fmt = "{t}")]
 pub struct Time {
     t: DateTime<Tz>,
 }
 
 /// Creation
 impl Time {
-    #[must_use]
     pub const fn new(t: DateTime<Tz>) -> Self {
         Self { t }
     }
 
-    #[must_use]
     pub fn zero(tz: Tz) -> Self {
         Time::from_utc_timestamp(0, 0, tz)
     }
@@ -40,24 +39,20 @@ impl Time {
         Self { t: d.into().and_hms(0, 0, 0) }
     }
 
-    #[must_use]
     pub fn from_utc_timestamp(utc_secs: i64, utc_nanos: u32, tz: Tz) -> Self {
         tz.from_utc_datetime(&NaiveDateTime::from_timestamp(utc_secs, utc_nanos)).into()
     }
 
-    #[must_use]
     pub fn from_utc_dec(utc_dec: Decimal, tz: Tz) -> Self {
         let utc_secs = utc_dec.trunc();
         let utc_nanos = ((utc_dec - utc_secs) * dec!(1000000000)).trunc();
         Self::from_utc_timestamp(utc_secs.to_i64().unwrap(), utc_nanos.to_u32().unwrap(), tz)
     }
 
-    #[must_use]
     pub fn from_utc_f64(utc_f64: f64, tz: Tz) -> Self {
         Self::from_utc_dec(utc_f64.try_into().unwrap(), tz)
     }
 
-    #[must_use]
     pub fn op(op: TOp, n: i64) -> TimeOp {
         TimeOp::new(op, n)
     }
@@ -144,17 +139,14 @@ impl Time {
         self.t.timezone()
     }
 
-    #[must_use]
     pub fn with_tz(&self, tz: Tz) -> Self {
         self.t.with_timezone(&tz).into()
     }
 
-    #[must_use]
     pub fn ymd(&self) -> Self {
         Self::from_date(self.date())
     }
 
-    #[must_use]
     pub fn date(&self) -> Date {
         self.t.date().into()
     }
@@ -169,7 +161,6 @@ impl Time {
         self.t.year()
     }
 
-    #[must_use]
     pub fn weekday(&self) -> Day {
         self.date().weekday()
     }
@@ -192,7 +183,6 @@ impl Time {
 
 /// Time and date operations
 impl Time {
-    #[must_use]
     pub fn with_date(&self, d: impl Into<chrono::Date<Tz>>) -> Self {
         let d = d.into();
         let mut t = self.t.time();
@@ -214,92 +204,74 @@ impl Time {
         }
     }
 
-    #[must_use]
     pub fn with_nanos(self, ns: u32) -> Self {
         self.t.with_nanosecond(ns).unwrap().into()
     }
 
-    #[must_use]
     pub fn add_nanos(self, ns: i64) -> Self {
         (self.t + chrono::Duration::nanoseconds(ns)).into()
     }
 
-    #[must_use]
     pub fn with_micros(self, us: u32) -> Self {
         self.t.with_nanosecond(us * 1000).unwrap().into()
     }
 
-    #[must_use]
     pub fn add_micros(self, us: i64) -> Self {
         (self.t + chrono::Duration::microseconds(us)).into()
     }
 
-    #[must_use]
     pub fn with_millis(self, ms: u32) -> Self {
         self.t.with_nanosecond(ms * 1000 * 1000).unwrap().into()
     }
 
-    #[must_use]
     pub fn add_millis(self, ms: i64) -> Self {
         (self.t + chrono::Duration::milliseconds(ms)).into()
     }
 
-    #[must_use]
     pub fn with_sec(self, s: u32) -> Self {
         self.t.with_second(s.clamp(0, 59)).unwrap().into()
     }
 
-    #[must_use]
     pub fn add_secs(self, secs: i64) -> Self {
         (self.t + chrono::Duration::seconds(secs)).into()
     }
 
-    #[must_use]
     pub fn with_min(self, m: u32) -> Self {
         self.t.with_minute(m.clamp(0, 59)).unwrap().into()
     }
 
-    #[must_use]
     pub fn add_mins(self, mins: i64) -> Self {
         (self.t + chrono::Duration::minutes(mins)).into()
     }
 
-    #[must_use]
     pub fn with_hour(self, h: u32) -> Self {
         self.t.with_hour(h.clamp(0, 23)).unwrap().into()
     }
 
-    #[must_use]
     pub fn add_hours(self, h: i64) -> Self {
         (self.t + chrono::Duration::hours(h)).into()
     }
 
-    #[must_use]
     pub fn with_day(self, d: u32) -> Self {
         self.with_date(self.date().with_day(d))
     }
 
-    #[must_use]
     pub fn add_days(self, d: i32) -> Self {
         self.with_date(self.date().add_days(d))
     }
 
-    #[must_use]
     pub fn with_month(self, m: u32) -> Self {
         self.with_date(self.date().with_month(m))
     }
 
-    #[must_use]
     pub fn add_months(self, m: i32) -> Self {
         self.with_date(self.date().add_months(m))
     }
 
-    #[must_use]
     pub fn with_year(self, y: i32) -> Self {
         self.with_date(self.date().with_year(y))
     }
 
-    #[must_use]
     pub fn add_years(self, y: i32) -> Self {
         self.with_date(self.date().add_years(y))
     }
