@@ -3,6 +3,7 @@ use std::ops::Sub;
 use derive_more::Display;
 use serde::{Deserialize, Serialize};
 
+#[must_use]
 #[derive(
     Debug,
     Default,
@@ -17,8 +18,8 @@ use serde::{Deserialize, Serialize};
     Serialize,
     Deserialize,
 )]
-#[display(fmt = "[{}, {})", st, en)]
-pub struct Span<T: PartialOrd + Copy> {
+#[display(fmt = "[{st}, {en})")]
+pub struct Span<T: PartialOrd + Copy + std::fmt::Display> {
     pub st: T,
     pub en: T, // Exclusive.
 }
@@ -33,7 +34,7 @@ pub fn pmin<X: PartialOrd + Copy>(a: X, b: X) -> X {
 }
 
 /// Returns |a| if |b| is not comparable.
-pub fn pmax<X: PartialOrd + Copy>(a: X, b: X) -> X {
+pub fn pmax<X: PartialOrd + Copy + std::fmt::Display>(a: X, b: X) -> X {
     if b > a {
         b
     } else {
@@ -41,7 +42,7 @@ pub fn pmax<X: PartialOrd + Copy>(a: X, b: X) -> X {
     }
 }
 
-impl<T: PartialOrd + Copy> Span<T> {
+impl<T: PartialOrd + Copy + std::fmt::Display> Span<T> {
     pub fn new(st: impl Into<T>, en: impl Into<T>) -> Self {
         Self { st: st.into(), en: en.into() }
     }
@@ -78,20 +79,18 @@ impl<T: PartialOrd + Copy> Span<T> {
         }
     }
 
-    #[must_use]
     pub fn span_union(&self, s: &Self) -> Self {
         Span::new(pmin(self.st, s.st), pmax(self.en, s.en))
     }
 }
 
-impl<T: PartialOrd + Copy + Sub> Span<T> {
+impl<T: PartialOrd + Copy + Sub + std::fmt::Display> Span<T> {
     pub fn size(&self) -> <T as Sub>::Output {
         self.en - self.st
     }
 }
 
-impl<T: PartialOrd + Copy + Default> Span<T> {
-    #[must_use]
+impl<T: PartialOrd + Copy + Default + std::fmt::Display> Span<T> {
     pub fn empty() -> Self {
         Self::new(T::default(), T::default())
     }

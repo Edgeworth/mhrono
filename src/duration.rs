@@ -1,6 +1,7 @@
 use std::fmt;
 use std::fmt::Write;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
+use std::str::FromStr;
 use std::sync::LazyLock;
 
 use derive_more::Display;
@@ -28,6 +29,7 @@ pub const BASES: &[(&str, Duration)] = &[
     ("as", ASEC),
 ];
 
+#[must_use]
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Display, Ord, PartialOrd)]
 #[display(fmt = "{}", "self.human().unwrap_or_else(|_| self.secs.to_string())")]
 pub struct Duration {
@@ -35,12 +37,10 @@ pub struct Duration {
 }
 
 impl Duration {
-    #[must_use]
     pub const fn new(secs: Decimal) -> Self {
         Self { secs }
     }
 
-    #[must_use]
     pub const fn zero() -> Self {
         Self { secs: dec!(0) }
     }
@@ -78,7 +78,7 @@ impl Duration {
             let div = (rem / dur).trunc();
             rem -= dur * div;
             if !div.is_zero() {
-                let _ = write!(human, "{}{}", div, s);
+                let _ = write!(human, "{div}{s}");
             }
         }
         // Some sub-attosecond duration...
@@ -205,6 +205,7 @@ impl ToPrimitive for Duration {
     }
 }
 
+#[must_use]
 pub struct UniformDuration(UniformFloat<f64>);
 
 impl UniformSampler for UniformDuration {
@@ -264,6 +265,14 @@ impl<'a> Deserialize<'a> for Duration {
 impl Serialize for Duration {
     fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         s.serialize_str(&self.human().map_err(ser::Error::custom)?)
+    }
+}
+
+impl FromStr for Duration {
+    type Err = eyre::Report;
+
+    fn from_str(s: &str) -> Result<Self> {
+        Self::from_human(s)
     }
 }
 

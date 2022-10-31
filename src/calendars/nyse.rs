@@ -113,7 +113,6 @@ static NYSE_SPECIAL: LazyLock<DaySet> = LazyLock::new(|| {
     ])
 });
 
-#[must_use]
 pub fn get_nyse() -> Calendar {
     Calendar::new(
         "NYSE",

@@ -6,6 +6,7 @@ use crate::time::Time;
 
 // Calendar that caches the results from an inner calendar.
 // Much faster than a regular calendar.
+#[must_use]
 #[derive(Clone)]
 pub struct CachedCalendar {
     spans: Vec<Span<Time>>,
@@ -41,7 +42,6 @@ impl CachedCalendar {
         }
     }
 
-    #[must_use]
     pub fn span(&self) -> Span<Time> {
         self.span
     }

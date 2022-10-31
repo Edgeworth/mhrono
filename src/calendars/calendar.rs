@@ -11,6 +11,7 @@ use crate::op::SpanOp;
 use crate::span::Span;
 use crate::time::Time;
 
+#[must_use]
 #[derive(Debug, Clone, Default)]
 struct RangeCache {
     cache: BTreeSet<Date>,
@@ -53,6 +54,7 @@ pub trait Ranger {
     fn append_range<T: Into<Span<Date>>>(&mut self, s: T, v: &mut BTreeSet<Date>);
 }
 
+#[must_use]
 struct RangerUnion<'a, R: Ranger> {
     rs: &'a mut [R],
 }
@@ -73,6 +75,7 @@ impl<R: Ranger> Ranger for RangerUnion<'_, R> {
 }
 
 // TODO: handle early closes
+#[must_use]
 #[derive(Clone)]
 pub struct Calendar {
     pub name: String,
@@ -89,7 +92,6 @@ impl Calendar {
     /// span ops that `SpanSet` is associated with. If there are multiple such,
     /// it will be done in order of |v|. If no holidays affect a day, spans
     /// are chosen in order of |v|.
-    #[must_use]
     pub fn new(
         name: &str,
         tz: Tz,
@@ -159,6 +161,7 @@ impl Calendar {
 
 pub trait Observance = Fn(Date) -> Option<Date> + Sync + Send;
 
+#[must_use]
 #[derive(Clone, Default)]
 pub struct DaySet {
     uncached: UncachedDaySet,
@@ -167,32 +170,26 @@ pub struct DaySet {
 }
 
 impl DaySet {
-    #[must_use]
     pub fn new() -> Self {
         Self { uncached: UncachedDaySet::new(), cache: RangeCache::new(), adhoc: Vec::new() }
     }
 
-    #[must_use]
     pub fn with_md(self, m: u32, d: u32) -> Self {
         Self { uncached: UncachedDaySet { md: Some((m, d)), ..self.uncached }, ..self }
     }
 
-    #[must_use]
     pub fn with_start(self, d: impl Into<Date>) -> Self {
         Self { uncached: UncachedDaySet { st: Some(d.into()), ..self.uncached }, ..self }
     }
 
-    #[must_use]
     pub fn with_end(self, d: impl Into<Date>) -> Self {
         Self { uncached: UncachedDaySet { en: Some(d.into()), ..self.uncached }, ..self }
     }
 
-    #[must_use]
     pub fn with_observance(self, o: impl 'static + Observance) -> Self {
         Self { uncached: UncachedDaySet { observance: Some(Arc::new(o)), ..self.uncached }, ..self }
     }
 
-    #[must_use]
     pub fn with_adhoc<T>(mut self, adhoc: T) -> Self
     where
         T::Item: Into<Date>,
@@ -218,6 +215,7 @@ impl Ranger for DaySet {
     }
 }
 
+#[must_use]
 #[derive(Clone, Default)]
 struct UncachedDaySet {
     md: Option<(u32, u32)>,

@@ -5,6 +5,7 @@ use crate::date::Date;
 use crate::span::Span;
 use crate::time::Time;
 
+#[must_use]
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Ord, PartialOrd, FromPrimitive)]
 pub enum TOp {
     // Adv |n| > 0 will always move to the next/previous day, even if the current day is the one in question.
@@ -44,6 +45,7 @@ pub enum TOp {
     SetNanos,
 }
 
+#[must_use]
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Ord, PartialOrd)]
 pub struct TimeOp {
     op: TOp,
@@ -51,7 +53,6 @@ pub struct TimeOp {
 }
 
 impl TimeOp {
-    #[must_use]
     pub const fn new(op: TOp, n: i64) -> Self {
         Self { op, n }
     }
@@ -80,6 +81,7 @@ impl TimeOp {
     }
 }
 
+#[must_use]
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Ord, PartialOrd, FromPrimitive)]
 pub enum DOp {
     // Adv |n| > 0 will always move to the next/previous day, even if the current day is the one in question.
@@ -107,6 +109,7 @@ pub enum DOp {
     Nop = 20,
 }
 
+#[must_use]
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Ord, PartialOrd)]
 pub struct DateOp {
     op: DOp,
@@ -114,7 +117,6 @@ pub struct DateOp {
 }
 
 impl DateOp {
-    #[must_use]
     pub const fn new(op: DOp, n: i64) -> Self {
         Self { op, n }
     }
@@ -147,6 +149,7 @@ fn apply_dop(d: Date, op: DOp, n: i64) -> Date {
     }
 }
 
+#[must_use]
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Copy, Clone)]
 pub struct SpanOp {
     pub st: TimeOp,
@@ -154,7 +157,6 @@ pub struct SpanOp {
 }
 
 impl SpanOp {
-    #[must_use]
     pub const fn new(st: TimeOp, en: TimeOp) -> Self {
         Self { st, en }
     }

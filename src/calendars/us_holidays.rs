@@ -44,7 +44,7 @@ fn day_after_4th_thu(d: Date) -> Option<Date> {
 #[allow(clippy::many_single_char_names, clippy::unnecessary_wraps)]
 fn easter(d: Date) -> Option<Date> {
     let y = d.year();
-    assert!((1583..=4099).contains(&y), "easter calculation not valid in year {}", y);
+    assert!((1583..=4099).contains(&y), "easter calculation not valid in year {y}");
     let g = y % 19;
     let c = y / 100;
     let h = (c - c / 4 - (8 * c + 13) / 25 + 19 * g + 15) % 30;
