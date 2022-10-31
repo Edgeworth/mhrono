@@ -1,7 +1,7 @@
 [package]
 authors = ["Eliot Courtney <edgeworth.dev@gmail.com>"]
 categories = ["date-and-time"]
-description = "time/date/calendar library"
+description = "time/date/calendar/timeseries library"
 edition = "2021"
 keywords = ["calendar", "time", "chrono"]
 license = "MIT OR Apache-2.0"

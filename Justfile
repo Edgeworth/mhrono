@@ -18,8 +18,8 @@ build:
 run target *args="":
   cargo run {{profile_flag}} -p {{target}} -- {{args}}
 
-test:
-  cargo test --workspace --all-features --all-targets  -- --nocapture
+test *args="":
+  cargo test --workspace --all-features --all-targets  -- --nocapture {{args}}
 
 fix:
   __CARGO_FIX_YOLO=1 cargo fix --workspace --all-features --all-targets --edition-idioms --broken-code

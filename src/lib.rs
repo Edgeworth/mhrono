@@ -45,5 +45,6 @@ pub mod duration;
 pub mod freq;
 pub mod iter;
 pub mod op;
+pub mod seq;
 pub mod span;
 pub mod time;

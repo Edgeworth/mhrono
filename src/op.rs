@@ -163,7 +163,7 @@ impl SpanOp {
 
     pub fn apply(&self, t: impl Into<Time>) -> Span<Time> {
         let t = t.into();
-        Span::new(self.st.apply(t), self.en.apply(t))
+        Span::exc(self.st.apply(t), self.en.apply(t))
     }
 }
 
