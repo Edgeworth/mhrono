@@ -5,6 +5,8 @@ use std::ops::{Add, AddAssign, Bound, Sub, SubAssign};
 use derive_more::Display;
 use serde::{Deserialize, Serialize};
 
+/// Represents an endpoint of a span. For comparison, endpoints behave as closed
+/// points - that is, an open endpoint should be compared with >= and <=.
 #[must_use]
 #[derive(Debug, Default, Eq, PartialEq, Hash, Copy, Clone, Serialize, Deserialize)]
 pub struct Endpoint<T> {
