@@ -1,6 +1,7 @@
 use eyre::Result;
 
-use crate::seq::series::{Series, SeriesInner};
+use crate::seq::inner::SeriesInner;
+use crate::seq::series::Series;
 use crate::series_ops;
 use crate::span::Span;
 use crate::time::Time;
@@ -37,8 +38,8 @@ impl<Y: Clone> Series for TimeSeries<Y> {
         Self { inner }
     }
 
-    fn x(v: &Self::V) -> &Self::X {
-        &v.0
+    fn x(v: &Self::V) -> Self::X {
+        v.0
     }
 
     fn y(v: &Self::V) -> &Self::Y {
@@ -56,7 +57,7 @@ impl<Y: Clone> Series for TimeSeries<Y> {
     }
 
     fn checked_push(&mut self, elt: Self::V) -> Result<bool> {
-        let needs_sort = if let Some(last) = self.last() { &last.0 > Self::x(&elt) } else { false };
+        let needs_sort = if let Some(last) = self.last() { last.0 > Self::x(&elt) } else { false };
         self.inner.push(elt);
         Ok(needs_sort)
     }

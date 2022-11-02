@@ -1,63 +1,13 @@
 use std::iter::Map;
+use std::ops::RangeBounds;
 use std::slice::{Iter, Windows};
-use std::sync::Arc;
 
 use eyre::Result;
 
+use crate::seq::inner::SeriesInner;
 use crate::span::Span;
 
-#[must_use]
-#[derive(Debug, Eq, PartialEq, PartialOrd, Hash, Clone)]
-pub struct SeriesInner<V: Clone> {
-    data: Arc<Vec<V>>,
-    range: Option<Span<usize>>,
-}
-
-impl<V: Clone> Default for SeriesInner<V> {
-    fn default() -> Self {
-        Self::empty()
-    }
-}
-
-impl<V: Clone> SeriesInner<V> {
-    pub fn new(data: impl Into<Arc<Vec<V>>>) -> Self {
-        Self { data: data.into(), range: None }
-    }
-
-    pub fn empty() -> Self {
-        Self::new(Vec::new())
-    }
-
-    #[must_use]
-    pub fn data(&self) -> &Vec<V> {
-        &self.data
-    }
-
-    pub fn data_mut(&mut self) -> &mut Vec<V> {
-        // Have to move to new backing storage if we have a subsequence set.
-        if let Some(r) = self.range {
-            self.data = Arc::new(self.data[r.range()].to_vec());
-        }
-
-        Arc::make_mut(&mut self.data)
-    }
-
-    pub fn push(&mut self, elt: V) {
-        self.data_mut().push(elt);
-    }
-
-    pub fn subseq(&self, st: usize, en: usize) -> Self {
-        // implement add/sub for endpoint
-        let range = if let Some(r) = self.range {
-            Some(Span::exc(r.st.p + st, r.st.p + en))
-        } else {
-            Some(Span::exc(st, en))
-        };
-        Self { data: Arc::clone(&self.data), range }
-    }
-}
-
-pub type XSeries<'a, V, X> = Map<Iter<'a, V>, fn(&V) -> &X>;
+pub type XSeries<'a, V, X> = Map<Iter<'a, V>, fn(&V) -> X>;
 pub type YSeries<'a, V, Y> = Map<Iter<'a, V>, fn(&V) -> &Y>;
 
 /// Series trait useful for making time series. Stored values can take up a
@@ -82,12 +32,14 @@ pub trait Series {
     fn make_from_inner(&self, inner: SeriesInner<Self::V>) -> Self;
 
     /// Returns a representative X value for the given value.
-    fn x(v: &Self::V) -> &Self::X;
+    fn x(v: &Self::V) -> Self::X;
 
     /// Returns the Y value for the given value.
     fn y(v: &Self::V) -> &Self::Y;
 
-    /// Returns span of X values that the given value takes up.
+    /// Returns span of X values that the given value takes up. This span must
+    /// contain its x value (or be an endpoint of the range), and must not
+    /// overlap with any other value's span.
     fn span_of(v: &Self::V) -> Span<Self::X>;
 
     /// Normalize the underlying data and perform error checking if wanted.
@@ -105,7 +57,7 @@ pub trait Series {
 
     #[must_use]
     fn get(&self, idx: usize) -> Option<&Self::V> {
-        self.inner().data.get(idx)
+        self.slice().get(idx)
     }
 
     /// Note: may be expensive if there are other owners.
@@ -131,7 +83,7 @@ pub trait Series {
     }
 
     fn slice(&self) -> &[Self::V] {
-        &self.inner().data
+        self.inner().slice()
     }
 
     #[must_use]
@@ -145,11 +97,11 @@ pub trait Series {
     }
 
     fn xs(&self) -> XSeries<'_, Self::V, Self::X> {
-        self.inner().data.iter().map(|v| Self::x(v))
+        self.iter().map(|v| Self::x(v))
     }
 
     fn ys(&self) -> YSeries<'_, Self::V, Self::Y> {
-        self.inner().data.iter().map(|v| Self::y(v))
+        self.iter().map(|v| Self::y(v))
     }
 
     /// Pushes a new value into the series.
@@ -161,8 +113,8 @@ pub trait Series {
     }
 
     /// Find the first thing greater than |x|
-    fn upper_bound_idx(&self, x: &Self::X) -> Option<usize> {
-        let data = &self.inner().data;
+    fn upper_bound_idx(&self, x: Self::X) -> Option<usize> {
+        let data = &self.slice();
         let idx = data.partition_point(|v| x >= Self::x(v));
         if idx < data.len() {
             Some(idx)
@@ -172,8 +124,8 @@ pub trait Series {
     }
 
     /// Find the first thing not less than |x|
-    fn lower_bound_idx(&self, x: &Self::X) -> Option<usize> {
-        let data = &self.inner().data;
+    fn lower_bound_idx(&self, x: Self::X) -> Option<usize> {
+        let data = &self.slice();
         let idx = data.partition_point(|v| Self::x(v) < x);
         if idx < data.len() {
             Some(idx)
@@ -183,13 +135,13 @@ pub trait Series {
     }
 
     /// Find the first thing not less than |x|
-    fn lower_bound(&self, x: &Self::X) -> Option<&Self::V> {
+    fn lower_bound(&self, x: Self::X) -> Option<&Self::V> {
         self.lower_bound_idx(x).and_then(|idx| self.get(idx))
     }
 
     /// Find the last element less than or equal to x
-    fn lower_bound_last_idx(&self, x: &Self::X) -> Option<usize> {
-        let idx = self.inner().data.partition_point(|v| x >= Self::x(v));
+    fn lower_bound_last_idx(&self, x: Self::X) -> Option<usize> {
+        let idx = self.slice().partition_point(|v| x >= Self::x(v));
         if idx > 0 {
             Some(idx - 1)
         } else {
@@ -198,44 +150,86 @@ pub trait Series {
     }
 
     /// Find the last element less than or equal to x
-    fn lower_bound_last(&self, x: &Self::X) -> Option<&Self::V> {
+    fn lower_bound_last(&self, x: Self::X) -> Option<&Self::V> {
         self.lower_bound_last_idx(x).and_then(|idx| self.get(idx))
     }
 
-    /// Lookup the index of the record which contains the given time |t|. If no
-    /// such record exists, look up the record which is immediately before |t|,
+    /// Lookup the index of the record which contains |x|. If no such record
+    /// exists, look up the record which is immediately before |x|,
     /// if it exists.
-    fn lookup_idx(&self, x: &Self::X) -> Option<usize> {
-        // Find first record closing after |t|.
+    fn lookup_before_idx(&self, x: Self::X) -> Option<usize> {
         let idx = self.upper_bound_idx(x)?;
 
-        if Self::span_of(self.get(idx)?).contains(*x) {
+        if Self::span_of(self.get(idx)?).contains(x) {
             Some(idx)
         } else if idx > 0 {
-            // We were too late, try the previous record.
             Some(idx - 1)
         } else {
             None
         }
     }
 
-    /// Lookup the record which contains the given time |t|. If no such record
-    /// exists, look up the record which is immediately before |t|, if it exists.
+    /// Lookup the record which contains |x|. If no such record exists, look up
+    /// the record which is immediately before |x|, if it exists.
     #[must_use]
-    fn lookup(&self, x: &Self::X) -> Option<&Self::V> {
-        self.lookup_idx(x).and_then(|idx| self.get(idx))
+    fn lookup_before(&self, x: Self::X) -> Option<&Self::V> {
+        self.lookup_before_idx(x).and_then(|idx| self.get(idx))
+    }
+
+    /// Lookup the index of the record which contains |x|. If no such record
+    /// exists, look up the record which is immediately after |x|,
+    /// if it exists.
+    fn lookup_after_idx(&self, x: Self::X) -> Option<usize> {
+        let idx = self.lower_bound_idx(x)?;
+
+        if Self::span_of(self.get(idx)?).contains(x) {
+            Some(idx)
+        } else if idx + 1 < self.len() {
+            Some(idx + 1)
+        } else {
+            None
+        }
+    }
+
+    /// Lookup the record which contains |x|. If no such record exists, look up
+    /// the record which is immediately after |x|, if it exists.
+    #[must_use]
+    fn lookup_after(&self, x: Self::X) -> Option<&Self::V> {
+        self.lookup_after_idx(x).and_then(|idx| self.get(idx))
     }
 
     /// Returns (cheaply) a subsequence of the series which contains all
     /// elements fully contained within the given span.
     #[must_use]
-    fn subseq(&self, s: Span<Self::X>) -> Self
+    fn subseq(&self, s: Span<Self::X>) -> &[Self::V] {
+        let st = self.slice().partition_point(|v| s.st >= Self::span_of(v).st);
+        let en = self.slice().partition_point(|v| s.en >= Self::span_of(v).en);
+        &self.slice()[st..en]
+    }
+
+    /// Returns (cheaply) a subsequence of the series which contains all
+    /// elements fully contained within the given span.
+    #[must_use]
+    fn subseq_series(&self, s: Span<Self::X>) -> Self
     where
         Self: Sized,
     {
         let st = self.slice().partition_point(|v| s.st >= Self::span_of(v).st);
         let en = self.slice().partition_point(|v| s.en >= Self::span_of(v).en);
-        self.make_from_inner(self.inner().subseq(st, en))
+        self.make_from_inner(self.inner().subseq(st..en))
+    }
+
+    #[must_use]
+    fn subseq_idx(&self, range: impl RangeBounds<usize>) -> &[Self::V] {
+        &self.slice()[(range.start_bound().cloned(), range.end_bound().cloned())]
+    }
+
+    #[must_use]
+    fn subseq_idx_series(&self, range: impl RangeBounds<usize>) -> Self
+    where
+        Self: Sized,
+    {
+        self.make_from_inner(self.inner().subseq(range))
     }
 
     #[must_use]
