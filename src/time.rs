@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use crate::date::{Date, Day};
 use crate::duration::{Duration, SEC};
 use crate::op::{TOp, TimeOp};
+use crate::span::endpoint::EndpointConversion;
 
 pub const LOCAL_FMT: &str = "%Y-%m-%dT%H:%M:%S%.f";
 
@@ -411,6 +412,20 @@ impl ToPrimitive for Time {
 
     fn to_f64(&self) -> Option<f64> {
         Some(Time::utc_f64(*self))
+    }
+}
+
+impl EndpointConversion for Time {
+    fn to_open(p: &Self, left: bool) -> Option<Self> {
+        let ulp = chrono::Duration::nanoseconds(1);
+        let d = if left { p.t.checked_sub_signed(ulp) } else { p.t.checked_add_signed(ulp) };
+        d.map(Self::new)
+    }
+
+    fn to_closed(p: &Self, left: bool) -> Option<Self> {
+        let ulp = chrono::Duration::nanoseconds(1);
+        let d = if left { p.t.checked_add_signed(ulp) } else { p.t.checked_sub_signed(ulp) };
+        d.map(Self::new)
     }
 }
 

@@ -15,6 +15,8 @@ use rust_decimal_macros::dec;
 use serde::de::{self, Visitor};
 use serde::{ser, Deserialize, Serialize};
 
+use crate::span::endpoint::EndpointConversion;
+
 pub const BASES: &[(&str, Duration)] = &[
     ("w", WEEK),
     ("d", DAY),
@@ -273,6 +275,16 @@ impl FromStr for Duration {
 
     fn from_str(s: &str) -> Result<Self> {
         Self::from_human(s)
+    }
+}
+
+impl EndpointConversion for Duration {
+    fn to_open(p: &Self, left: bool) -> Option<Self> {
+        <Decimal as EndpointConversion>::to_open(&p.secs, left).map(Self::new)
+    }
+
+    fn to_closed(p: &Self, left: bool) -> Option<Self> {
+        <Decimal as EndpointConversion>::to_closed(&p.secs, left).map(Self::new)
     }
 }
 

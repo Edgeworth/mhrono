@@ -22,8 +22,8 @@ fn nyse_spans() -> Result<()> {
         if s.st >= Time::from_date(Eastern.ymd(END_YEAR, 1, 1)) {
             break;
         }
-        writeln!(f, "{},{}", s.st.p.with_tz(UTC).to_iso(), s.en.p.with_tz(UTC).to_iso())?;
-        t = s.en.p;
+        writeln!(f, "{},{}", s.st.with_tz(UTC).to_iso(), s.en.with_tz(UTC).to_iso())?;
+        t = s.en;
     }
     Ok(())
 }
@@ -39,7 +39,7 @@ fn nyse_holidays() -> Result<()> {
     for d in DateIter::day(Eastern.ymd(START_YEAR, 1, 1), Eastern.ymd(END_YEAR, 1, 1)) {
         let t = d.into();
         let s = nyse.next_span(t).unwrap();
-        if t.ymd() != s.st.p.ymd() {
+        if t.ymd() != s.st.ymd() {
             writeln!(f, "{}", &t.to_iso()[..10])?; // Holiday.
         }
     }

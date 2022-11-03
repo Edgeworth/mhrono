@@ -4,6 +4,7 @@ use derive_more::Display;
 use num_traits::FromPrimitive;
 
 use crate::op::{DOp, DateOp};
+use crate::span::endpoint::EndpointConversion;
 
 #[must_use]
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Ord, PartialOrd)]
@@ -142,5 +143,17 @@ impl Date {
 
     pub fn add_years(self, y: i32) -> Self {
         self.with_year(self.year() + y)
+    }
+}
+
+impl EndpointConversion for Date {
+    fn to_open(p: &Self, left: bool) -> Option<Self> {
+        let d = if left { p.d.pred_opt() } else { p.d.succ_opt() };
+        d.map(Self::new)
+    }
+
+    fn to_closed(p: &Self, left: bool) -> Option<Self> {
+        let d = if left { p.d.succ_opt() } else { p.d.pred_opt() };
+        d.map(Self::new)
     }
 }

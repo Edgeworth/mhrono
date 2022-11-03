@@ -2,7 +2,7 @@ use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
 use crate::date::Date;
-use crate::span::Span;
+use crate::span::exc::SpanExc;
 use crate::time::Time;
 
 #[must_use]
@@ -161,9 +161,9 @@ impl SpanOp {
         Self { st, en }
     }
 
-    pub fn apply(&self, t: impl Into<Time>) -> Span<Time> {
+    pub fn apply(&self, t: impl Into<Time>) -> SpanExc<Time> {
         let t = t.into();
-        Span::exc(self.st.apply(t), self.en.apply(t))
+        SpanExc::new(self.st.apply(t), self.en.apply(t))
     }
 }
 
