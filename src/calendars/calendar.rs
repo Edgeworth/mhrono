@@ -8,41 +8,41 @@ use chrono_tz::Tz;
 use crate::date::Date;
 use crate::iter::DateIter;
 use crate::op::SpanOp;
-use crate::span::Span;
+use crate::span::exc::SpanExc;
 use crate::time::Time;
 
 #[must_use]
 #[derive(Debug, Clone, Default)]
 struct RangeCache {
     cache: BTreeSet<Date>,
-    computed: Span<Date>,
+    computed: SpanExc<Date>,
 }
 
 impl RangeCache {
     fn new() -> Self {
-        Self { cache: BTreeSet::new(), computed: Span::default() }
+        Self { cache: BTreeSet::new(), computed: SpanExc::default() }
     }
 
     fn contains(&mut self, d: Date, r: &mut impl Ranger) -> bool {
-        self.ensure_range(Span::point(d), r);
+        self.ensure_range(SpanExc::point(d).unwrap(), r);
         self.cache.contains(&d)
     }
 
-    fn get_range(&mut self, s: Span<Date>, r: &mut impl Ranger) -> Range<'_, Date> {
+    fn get_range(&mut self, s: SpanExc<Date>, r: &mut impl Ranger) -> Range<'_, Date> {
         self.ensure_range(s, r);
         self.cache.range(s.range())
     }
 
-    fn ensure_range(&mut self, s: Span<Date>, r: &mut impl Ranger) {
+    fn ensure_range(&mut self, s: SpanExc<Date>, r: &mut impl Ranger) {
         if !self.computed.contains_span(&s) {
-            self.computed = Span::cover(&self.computed, &s);
-            let years = 20.max(self.computed.en.p.year() - self.computed.st.p.year() + 1);
+            self.computed = SpanExc::cover(&self.computed, &s);
+            let years = 20.max(self.computed.en.year() - self.computed.st.year() + 1);
             // Expand on left or right if we bumped up against it.
             if s.st == self.computed.st {
-                self.computed.st.p = self.computed.st.p.add_years(-years);
+                self.computed.st = self.computed.st.add_years(-years);
             }
             if s.en == self.computed.en {
-                self.computed.en.p = self.computed.en.p.add_years(years);
+                self.computed.en = self.computed.en.add_years(years);
             }
             // TODO: only call append_range for changed bits
             r.append_range(self.computed, &mut self.cache);
@@ -51,7 +51,7 @@ impl RangeCache {
 }
 
 pub trait Ranger {
-    fn append_range<T: Into<Span<Date>>>(&mut self, s: T, v: &mut BTreeSet<Date>);
+    fn append_range<T: Into<SpanExc<Date>>>(&mut self, s: T, v: &mut BTreeSet<Date>);
 }
 
 #[must_use]
@@ -66,7 +66,7 @@ impl<'a, R: Ranger> RangerUnion<'a, R> {
 }
 
 impl<R: Ranger> Ranger for RangerUnion<'_, R> {
-    fn append_range<T: Into<Span<Date>>>(&mut self, s: T, v: &mut BTreeSet<Date>) {
+    fn append_range<T: Into<SpanExc<Date>>>(&mut self, s: T, v: &mut BTreeSet<Date>) {
         let s = s.into();
         for r in self.rs.iter_mut() {
             r.append_range(s, v);
@@ -117,7 +117,7 @@ impl Calendar {
         }
     }
 
-    pub fn next_span(&mut self, mut t: Time) -> Option<Span<Time>> {
+    pub fn next_span(&mut self, mut t: Time) -> Option<SpanExc<Time>> {
         t = t.with_tz(self.tz);
         loop {
             let d = t.date();
@@ -132,7 +132,7 @@ impl Calendar {
         }
     }
 
-    fn next_span_in_day(&mut self, d: Date, t: Time) -> Option<Span<Time>> {
+    fn next_span_in_day(&mut self, d: Date, t: Time) -> Option<SpanExc<Time>> {
         // Check overrides.
         for (opens, daysets, cache) in &mut self.overrides {
             // If there's an override span today, then process the opens for this override.
@@ -145,7 +145,7 @@ impl Calendar {
         Self::find_next_span_in_opens(d, t, &self.opens)
     }
 
-    fn find_next_span_in_opens(d: Date, t: Time, opens: &[SpanOp]) -> Option<Span<Time>> {
+    fn find_next_span_in_opens(d: Date, t: Time, opens: &[SpanOp]) -> Option<SpanExc<Time>> {
         // Find first non-zero span starting >= t.
         // SpanOps from midnight.
         let base_t: Time = d.into();
@@ -202,7 +202,7 @@ impl DaySet {
 }
 
 impl Ranger for DaySet {
-    fn append_range<T: Into<Span<Date>>>(&mut self, s: T, v: &mut BTreeSet<Date>) {
+    fn append_range<T: Into<SpanExc<Date>>>(&mut self, s: T, v: &mut BTreeSet<Date>) {
         if self.adhoc.is_empty() {
             for d in self.cache.get_range(s.into(), &mut self.uncached) {
                 v.insert(*d);
@@ -229,11 +229,11 @@ impl UncachedDaySet {
         Self { md: None, st: None, en: None, observance: None }
     }
 
-    fn iter_span(&mut self, s: Span<Date>, iter: DateIter, v: &mut BTreeSet<Date>) {
+    fn iter_span(&mut self, s: SpanExc<Date>, iter: DateIter, v: &mut BTreeSet<Date>) {
         for cursor in iter {
             let d = self.observance.as_ref().map_or(Some(cursor), |f| f(cursor));
             if let Some(d) = d {
-                if s.contains(d) {
+                if s.contains(&d) {
                     v.insert(d);
                 }
             }
@@ -242,13 +242,13 @@ impl UncachedDaySet {
 }
 
 impl Ranger for UncachedDaySet {
-    fn append_range<T: Into<Span<Date>>>(&mut self, s: T, v: &mut BTreeSet<Date>) {
+    fn append_range<T: Into<SpanExc<Date>>>(&mut self, s: T, v: &mut BTreeSet<Date>) {
         let s = s.into();
-        let (st, en) = (s.st.p, s.en.p);
+        let (st, en) = (s.st, s.en);
         // Account for observances going 1 year into the past or future. This keeps month and day stable too.
         let sty = self.st.map_or(st.year(), |v| v.year().max(st.year())) - 1;
         let iter_en = en.with_year(self.en.map_or(en.year(), |v| v.year().min(en.year())) + 1);
-        let s = Span::exc(self.st.map_or(st, |v| v.max(st)), self.en.map_or(en, |v| v.min(en)));
+        let s = SpanExc::new(self.st.map_or(st, |v| v.max(st)), self.en.map_or(en, |v| v.min(en)));
         if let Some((m, d)) = self.md {
             let iter_st: Date = st.tz().ymd(sty, m, d).into();
             self.iter_span(s, DateIter::year(iter_st, iter_en), v);

@@ -5,7 +5,7 @@ use std::slice::{Iter, Windows};
 use eyre::Result;
 
 use crate::seq::inner::SeriesInner;
-use crate::span::Span;
+use crate::span::any::SpanAny;
 
 pub type XSeries<'a, V, X> = Map<Iter<'a, V>, fn(&V) -> X>;
 pub type YSeries<'a, V, Y> = Map<Iter<'a, V>, fn(&V) -> &Y>;
@@ -40,7 +40,7 @@ pub trait Series {
     /// Returns span of X values that the given value takes up. This span must
     /// contain its x value (or be an endpoint of the range), and must not
     /// overlap with any other value's span.
-    fn span_of(v: &Self::V) -> Span<Self::X>;
+    fn span_of(v: &Self::V) -> SpanAny<Self::X>;
 
     /// Normalize the underlying data and perform error checking if wanted.
     /// This is called e.g. on modification.
@@ -160,7 +160,7 @@ pub trait Series {
     fn lookup_before_idx(&self, x: Self::X) -> Option<usize> {
         let idx = self.upper_bound_idx(x)?;
 
-        if Self::span_of(self.get(idx)?).contains(x) {
+        if Self::span_of(self.get(idx)?).contains(&x) {
             Some(idx)
         } else if idx > 0 {
             Some(idx - 1)
@@ -182,7 +182,7 @@ pub trait Series {
     fn lookup_after_idx(&self, x: Self::X) -> Option<usize> {
         let idx = self.lower_bound_idx(x)?;
 
-        if Self::span_of(self.get(idx)?).contains(x) {
+        if Self::span_of(self.get(idx)?).contains(&x) {
             Some(idx)
         } else if idx + 1 < self.len() {
             Some(idx + 1)
@@ -201,7 +201,7 @@ pub trait Series {
     /// Returns (cheaply) a subsequence of the series which contains all
     /// elements fully contained within the given span.
     #[must_use]
-    fn subseq(&self, s: Span<Self::X>) -> &[Self::V] {
+    fn subseq(&self, s: SpanAny<Self::X>) -> &[Self::V] {
         let st = self.slice().partition_point(|v| s.st >= Self::span_of(v).st);
         let en = self.slice().partition_point(|v| s.en >= Self::span_of(v).en);
         &self.slice()[st..en]
@@ -210,7 +210,7 @@ pub trait Series {
     /// Returns (cheaply) a subsequence of the series which contains all
     /// elements fully contained within the given span.
     #[must_use]
-    fn subseq_series(&self, s: Span<Self::X>) -> Self
+    fn subseq_series(&self, s: SpanAny<Self::X>) -> Self
     where
         Self: Sized,
     {
@@ -252,8 +252,8 @@ pub trait Series {
         self.iter().min_by(|a, b| f(Self::y(a)).partial_cmp(&f(Self::y(b))).unwrap()).map(Self::y)
     }
 
-    fn span(&self) -> Span<Self::X> {
-        Span::new(Self::span_of(self.first().unwrap()).st, Self::span_of(self.last().unwrap()).en)
+    fn span(&self) -> SpanAny<Self::X> {
+        SpanAny::cover(&Self::span_of(self.first().unwrap()), &Self::span_of(self.last().unwrap()))
     }
 }
 

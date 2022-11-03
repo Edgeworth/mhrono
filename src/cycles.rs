@@ -7,6 +7,7 @@ use rust_decimal_macros::dec;
 
 use crate::duration::Duration;
 use crate::freq::Freq;
+use crate::span::endpoint::EndpointConversion;
 
 /// Number of occurrences of something.
 #[must_use]
@@ -155,5 +156,15 @@ impl ToPrimitive for Cycles {
 
     fn to_f64(&self) -> Option<f64> {
         self.count.to_f64()
+    }
+}
+
+impl EndpointConversion for Cycles {
+    fn to_open(p: &Self, left: bool) -> Option<Self> {
+        <Decimal as EndpointConversion>::to_open(&p.count, left).map(Self::new)
+    }
+
+    fn to_closed(p: &Self, left: bool) -> Option<Self> {
+        <Decimal as EndpointConversion>::to_closed(&p.count, left).map(Self::new)
     }
 }

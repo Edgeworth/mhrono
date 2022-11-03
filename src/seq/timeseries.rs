@@ -3,7 +3,7 @@ use eyre::Result;
 use crate::seq::inner::SeriesInner;
 use crate::seq::series::Series;
 use crate::series_ops;
-use crate::span::Span;
+use crate::span::any::SpanAny;
 use crate::time::Time;
 
 pub type F64Series = TimeSeries<f64>;
@@ -46,8 +46,8 @@ impl<Y: Clone> Series for TimeSeries<Y> {
         &v.1
     }
 
-    fn span_of(v: &Self::V) -> Span<Self::X> {
-        Span::point(v.0)
+    fn span_of(v: &Self::V) -> SpanAny<Self::X> {
+        SpanAny::point(v.0)
     }
 
     fn normalize(&mut self) -> Result<()> {
