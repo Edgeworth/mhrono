@@ -62,9 +62,7 @@ impl<V: Clone> SeriesInner<V> {
         };
         assert!(
             !(st > en || st > self.data.len() || en > self.data.len()),
-            "Invalid range: {} > {}",
-            st,
-            en
+            "Invalid range: {st} > {en}"
         );
 
         Self { data: Arc::clone(&self.data), st, en }
