@@ -154,10 +154,27 @@ pub trait Series {
         self.lower_bound_last_idx(x).and_then(|idx| self.get(idx))
     }
 
+    /// Lookup the index of the record which comes before |x|.
+    fn lookup_before_idx(&self, x: Self::X) -> Option<usize> {
+        let idx = self.lower_bound_idx(x)?;
+
+        if Self::span_of(self.get(idx)?).contains(&x) {
+            idx.checked_sub(1)
+        } else {
+            Some(idx)
+        }
+    }
+
+    /// Lookup the record which comes before |x|.
+    #[must_use]
+    fn lookup_before(&self, x: Self::X) -> Option<&Self::V> {
+        self.lookup_before_idx(x).and_then(|idx| self.get(idx))
+    }
+
     /// Lookup the index of the record which contains |x|. If no such record
     /// exists, look up the record which is immediately before |x|,
     /// if it exists.
-    fn lookup_before_idx(&self, x: Self::X) -> Option<usize> {
+    fn lookup_at_or_before_idx(&self, x: Self::X) -> Option<usize> {
         let idx = self.upper_bound_idx(x)?;
 
         if Self::span_of(self.get(idx)?).contains(&x) {
@@ -172,14 +189,14 @@ pub trait Series {
     /// Lookup the record which contains |x|. If no such record exists, look up
     /// the record which is immediately before |x|, if it exists.
     #[must_use]
-    fn lookup_before(&self, x: Self::X) -> Option<&Self::V> {
-        self.lookup_before_idx(x).and_then(|idx| self.get(idx))
+    fn lookup_at_or_before(&self, x: Self::X) -> Option<&Self::V> {
+        self.lookup_at_or_before_idx(x).and_then(|idx| self.get(idx))
     }
 
     /// Lookup the index of the record which contains |x|. If no such record
     /// exists, look up the record which is immediately after |x|,
     /// if it exists.
-    fn lookup_after_idx(&self, x: Self::X) -> Option<usize> {
+    fn lookup_at_or_after_idx(&self, x: Self::X) -> Option<usize> {
         let idx = self.lower_bound_idx(x)?;
 
         if Self::span_of(self.get(idx)?).contains(&x) {
@@ -194,8 +211,8 @@ pub trait Series {
     /// Lookup the record which contains |x|. If no such record exists, look up
     /// the record which is immediately after |x|, if it exists.
     #[must_use]
-    fn lookup_after(&self, x: Self::X) -> Option<&Self::V> {
-        self.lookup_after_idx(x).and_then(|idx| self.get(idx))
+    fn lookup_at_or_after(&self, x: Self::X) -> Option<&Self::V> {
+        self.lookup_at_or_after_idx(x).and_then(|idx| self.get(idx))
     }
 
     /// Returns (cheaply) a subsequence of the series which contains all
