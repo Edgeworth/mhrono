@@ -1,6 +1,5 @@
 use std::sync::LazyLock;
 
-use chrono::TimeZone;
 use chrono_tz::US::Eastern;
 
 use crate::calendars::calendar::{Calendar, DaySet};
@@ -21,6 +20,7 @@ use crate::calendars::us_holidays::{
     US_WASHINGTONS_BIRTH_DAY_BEFORE1964, WEATHER_SNOW_CLOSING,
     WEDNESDAY_BEFORE_INDEPENDENCE_DAY_POST2013,
 };
+use crate::date::ymd;
 use crate::op::{SpanOp, TOp};
 use crate::time::Time;
 
@@ -105,11 +105,11 @@ use crate::time::Time;
 // will be in 2025.
 
 static NYSE_SPECIAL: LazyLock<DaySet> = LazyLock::new(|| {
-    DaySet::new().with_adhoc(&[
-        Eastern.ymd(1997, 12, 26),
-        Eastern.ymd(1999, 12, 31),
-        Eastern.ymd(2003, 12, 26),
-        Eastern.ymd(2013, 7, 3),
+    DaySet::new().with_adhoc([
+        ymd(1997, 12, 26, Eastern),
+        ymd(1999, 12, 31, Eastern),
+        ymd(2003, 12, 26, Eastern),
+        ymd(2013, 7, 3, Eastern),
     ])
 });
 

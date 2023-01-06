@@ -2,10 +2,9 @@ use std::collections::btree_set::Range;
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
-use chrono::TimeZone;
 use chrono_tz::Tz;
 
-use crate::date::Date;
+use crate::date::{ymd, Date};
 use crate::iter::DateIter;
 use crate::op::SpanOp;
 use crate::span::exc::SpanExc;
@@ -128,7 +127,7 @@ impl Calendar {
             }
             // Use given time of day on the first iteration, but start from
             // midnight on subsequent iterations.
-            t = d.add_days(1).into();
+            t = d.add_days(1).time().unwrap();
         }
     }
 
@@ -148,7 +147,7 @@ impl Calendar {
     fn find_next_span_in_opens(d: Date, t: Time, opens: &[SpanOp]) -> Option<SpanExc<Time>> {
         // Find first non-zero span starting >= t.
         // SpanOps from midnight.
-        let base_t: Time = d.into();
+        let base_t: Time = d.time().unwrap();
         for open in opens.iter() {
             let s = open.apply(base_t);
             if s.st >= t {
@@ -250,7 +249,7 @@ impl Ranger for UncachedDaySet {
         let iter_en = en.with_year(self.en.map_or(en.year(), |v| v.year().min(en.year())) + 1);
         let s = SpanExc::new(self.st.map_or(st, |v| v.max(st)), self.en.map_or(en, |v| v.min(en)));
         if let Some((m, d)) = self.md {
-            let iter_st: Date = st.tz().ymd(sty, m, d).into();
+            let iter_st = ymd(sty, m, d, st.tz());
             self.iter_span(s, DateIter::year(iter_st, iter_en), v);
         } else {
             self.iter_span(s, DateIter::day(st.with_year(sty), iter_en), v);

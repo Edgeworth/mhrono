@@ -169,158 +169,146 @@ impl SpanOp {
 
 #[cfg(test)]
 mod tests {
-    use chrono::TimeZone;
     use chrono_tz::{Australia, Tz, US, UTC};
+    use eyre::Result;
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::date::ymd;
 
     const TZ: [Tz; 3] = [US::Eastern, UTC, Australia::Eucla];
 
     #[test]
-    fn leap_years() {
+    fn leap_years() -> Result<()> {
         for tz in &TZ {
-            assert_eq!(
-                Time::from_date(tz.ymd(2020, 2, 29)).with_year(2019),
-                tz.ymd(2019, 2, 28).into()
-            );
-            assert_eq!(
-                Time::from_date(tz.ymd(2020, 1, 29)).with_month(2),
-                tz.ymd(2020, 2, 29).into()
-            );
-            assert_eq!(
-                Time::from_date(tz.ymd(2020, 1, 30)).with_month(2),
-                tz.ymd(2020, 2, 29).into()
-            );
-            assert_eq!(
-                Time::from_date(tz.ymd(2019, 1, 29)).with_month(2),
-                tz.ymd(2019, 2, 28).into()
-            );
-            assert_eq!(
-                Time::from_date(tz.ymd(2019, 1, 30)).with_month(2),
-                tz.ymd(2019, 2, 28).into()
-            );
+            assert_eq!(ymd(2020, 2, 29, tz).time()?.with_year(2019), ymd(2019, 2, 28, tz).time()?);
+            assert_eq!(ymd(2020, 1, 29, tz).time()?.with_month(2), ymd(2020, 2, 29, tz).time()?);
+            assert_eq!(ymd(2020, 1, 30, tz).time()?.with_month(2), ymd(2020, 2, 29, tz).time()?);
+            assert_eq!(ymd(2019, 1, 29, tz).time()?.with_month(2), ymd(2019, 2, 28, tz).time()?);
+            assert_eq!(ymd(2019, 1, 30, tz).time()?.with_month(2), ymd(2019, 2, 28, tz).time()?);
         }
+        Ok(())
     }
 
     #[test]
-    fn time_offset() {
+    fn time_offset() -> Result<()> {
         for tz in &TZ {
             // Regular +1 year.
             assert_eq!(
-                Time::op(TOp::AddYears, 1).apply(tz.ymd(2019, 1, 30)),
-                tz.ymd(2020, 1, 30).into(),
+                Time::op(TOp::AddYears, 1).apply(ymd(2019, 1, 30, tz).time()?),
+                ymd(2020, 1, 30, tz).time()?,
             );
             // Leap year to non-leap year.
             assert_eq!(
-                Time::op(TOp::AddYears, 1).apply(tz.ymd(2020, 2, 29)),
-                tz.ymd(2021, 2, 28).into(),
+                Time::op(TOp::AddYears, 1).apply(ymd(2020, 2, 29, tz).time()?),
+                ymd(2021, 2, 28, tz).time()?,
             );
             // Month with more days to less days.
             assert_eq!(
-                Time::op(TOp::AddMonths, 1).apply(tz.ymd(2019, 1, 30)),
-                tz.ymd(2019, 2, 28).into(),
+                Time::op(TOp::AddMonths, 1).apply(ymd(2019, 1, 30, tz).time()?),
+                ymd(2019, 2, 28, tz).time()?,
             );
             // Month with more days to less days in a leap year.
             assert_eq!(
-                Time::op(TOp::AddMonths, 1).apply(tz.ymd(2020, 1, 30)),
-                tz.ymd(2020, 2, 29).into(),
+                Time::op(TOp::AddMonths, 1).apply(ymd(2020, 1, 30, tz).time()?),
+                ymd(2020, 2, 29, tz).time()?,
             );
             // 29th Feb to next year March.
             assert_eq!(
-                Time::op(TOp::AddMonths, 13).apply(tz.ymd(2020, 2, 29)),
-                tz.ymd(2021, 3, 29).into(),
+                Time::op(TOp::AddMonths, 13).apply(ymd(2020, 2, 29, tz).time()?),
+                ymd(2021, 3, 29, tz).time()?,
             );
             // Leap year +1 day.
             assert_eq!(
-                Time::op(TOp::AddDays, 1).apply(tz.ymd(2020, 2, 28)),
-                tz.ymd(2020, 2, 29).into(),
+                Time::op(TOp::AddDays, 1).apply(ymd(2020, 2, 28, tz).time()?),
+                ymd(2020, 2, 29, tz).time()?,
             );
             // Non-leap year +1 day.
             assert_eq!(
-                Time::op(TOp::AddDays, 1).apply(tz.ymd(2019, 2, 28)),
-                tz.ymd(2019, 3, 1).into(),
+                Time::op(TOp::AddDays, 1).apply(ymd(2019, 2, 28, tz).time()?),
+                ymd(2019, 3, 1, tz).time()?,
             );
             // Advance Monday (+2) on a Sunday.
             assert_eq!(
-                Time::op(TOp::AdvMon, 2).apply(tz.ymd(2020, 12, 6)),
-                tz.ymd(2020, 12, 14).into(),
+                Time::op(TOp::AdvMon, 2).apply(ymd(2020, 12, 6, tz).time()?),
+                ymd(2020, 12, 14, tz).time()?,
             );
             // Advance Monday (+2) on a Monday.
             assert_eq!(
-                Time::op(TOp::AdvMon, 2).apply(tz.ymd(2020, 12, 7)),
-                tz.ymd(2020, 12, 21).into(),
+                Time::op(TOp::AdvMon, 2).apply(ymd(2020, 12, 7, tz).time()?),
+                ymd(2020, 12, 21, tz).time()?,
             );
             // Advance Monday (+1) on a Sunday.
             assert_eq!(
-                Time::op(TOp::AdvMon, 1).apply(tz.ymd(2020, 12, 6)),
-                tz.ymd(2020, 12, 7).into(),
+                Time::op(TOp::AdvMon, 1).apply(ymd(2020, 12, 6, tz).time()?),
+                ymd(2020, 12, 7, tz).time()?,
             );
             // Advance Monday (+1) on a Monday.
             assert_eq!(
-                Time::op(TOp::AdvMon, 1).apply(tz.ymd(2020, 12, 7)),
-                tz.ymd(2020, 12, 14).into(),
+                Time::op(TOp::AdvMon, 1).apply(ymd(2020, 12, 7, tz).time()?),
+                ymd(2020, 12, 14, tz).time()?,
             );
             // Advance Monday (+0) on a Sunday.
             assert_eq!(
-                Time::op(TOp::AdvMon, 0).apply(tz.ymd(2020, 12, 6)),
-                tz.ymd(2020, 12, 7).into(),
+                Time::op(TOp::AdvMon, 0).apply(ymd(2020, 12, 6, tz).time()?),
+                ymd(2020, 12, 7, tz).time()?,
             );
             // Advance Monday (+0) on a Monday.
             assert_eq!(
-                Time::op(TOp::AdvMon, 0).apply(tz.ymd(2020, 12, 7)),
-                tz.ymd(2020, 12, 7).into(),
+                Time::op(TOp::AdvMon, 0).apply(ymd(2020, 12, 7, tz).time()?),
+                ymd(2020, 12, 7, tz).time()?,
             );
             // Neg advance Monday (-1) on a Sunday.
             assert_eq!(
-                Time::op(TOp::AdvMon, -1).apply(tz.ymd(2020, 12, 6)),
-                tz.ymd(2020, 11, 30).into(),
+                Time::op(TOp::AdvMon, -1).apply(ymd(2020, 12, 6, tz).time()?),
+                ymd(2020, 11, 30, tz).time()?,
             );
             // Neg advance Monday (-1) on a Monday.
             assert_eq!(
-                Time::op(TOp::AdvMon, -1).apply(tz.ymd(2020, 12, 7)),
-                tz.ymd(2020, 11, 30).into(),
+                Time::op(TOp::AdvMon, -1).apply(ymd(2020, 12, 7, tz).time()?),
+                ymd(2020, 11, 30, tz).time()?,
             );
             // Find Monday (+2) on a Sunday.
             assert_eq!(
-                Time::op(TOp::FindMon, 2).apply(tz.ymd(2020, 12, 6)),
-                tz.ymd(2020, 12, 14).into(),
+                Time::op(TOp::FindMon, 2).apply(ymd(2020, 12, 6, tz).time()?),
+                ymd(2020, 12, 14, tz).time()?,
             );
             // Find Monday (+2) on a Monday.
             assert_eq!(
-                Time::op(TOp::FindMon, 2).apply(tz.ymd(2020, 12, 7)),
-                tz.ymd(2020, 12, 14).into(),
+                Time::op(TOp::FindMon, 2).apply(ymd(2020, 12, 7, tz).time()?),
+                ymd(2020, 12, 14, tz).time()?,
             );
             // Find Monday (+1) on a Sunday.
             assert_eq!(
-                Time::op(TOp::FindMon, 1).apply(tz.ymd(2020, 12, 6)),
-                tz.ymd(2020, 12, 7).into(),
+                Time::op(TOp::FindMon, 1).apply(ymd(2020, 12, 6, tz).time()?),
+                ymd(2020, 12, 7, tz).time()?,
             );
             // Find Monday (+1) on a Monday.
             assert_eq!(
-                Time::op(TOp::FindMon, 1).apply(tz.ymd(2020, 12, 7)),
-                tz.ymd(2020, 12, 7).into(),
+                Time::op(TOp::FindMon, 1).apply(ymd(2020, 12, 7, tz).time()?),
+                ymd(2020, 12, 7, tz).time()?,
             );
             // Find Monday (+0) on a Sunday.
             assert_eq!(
-                Time::op(TOp::FindMon, 0).apply(tz.ymd(2020, 12, 6)),
-                tz.ymd(2020, 12, 7).into(),
+                Time::op(TOp::FindMon, 0).apply(ymd(2020, 12, 6, tz).time()?),
+                ymd(2020, 12, 7, tz).time()?,
             );
             // Find Monday (+0) on a Monday.
             assert_eq!(
-                Time::op(TOp::FindMon, 0).apply(tz.ymd(2020, 12, 7)),
-                tz.ymd(2020, 12, 7).into(),
+                Time::op(TOp::FindMon, 0).apply(ymd(2020, 12, 7, tz).time()?),
+                ymd(2020, 12, 7, tz).time()?,
             );
             // Neg find Monday (-1) on a Sunday.
             assert_eq!(
-                Time::op(TOp::FindMon, -1).apply(tz.ymd(2020, 12, 6)),
-                tz.ymd(2020, 11, 30).into(),
+                Time::op(TOp::FindMon, -1).apply(ymd(2020, 12, 6, tz).time()?),
+                ymd(2020, 11, 30, tz).time()?,
             );
             // Neg find Monday (-1) on a Monday.
             assert_eq!(
-                Time::op(TOp::FindMon, -1).apply(tz.ymd(2020, 12, 7)),
-                tz.ymd(2020, 12, 7).into(),
+                Time::op(TOp::FindMon, -1).apply(ymd(2020, 12, 7, tz).time()?),
+                ymd(2020, 12, 7, tz).time()?,
             );
         }
+        Ok(())
     }
 }
