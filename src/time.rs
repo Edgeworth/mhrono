@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::fmt;
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 use std::str::FromStr;
@@ -18,6 +19,18 @@ use crate::op::{TOp, TimeOp};
 use crate::span::endpoint::EndpointConversion;
 
 pub const LOCAL_FMT: &str = "%Y-%m-%dT%H:%M:%S%.f";
+
+pub fn ymdhms<T: Borrow<Tz>>(
+    year: i32,
+    month: u32,
+    day: u32,
+    hour: u32,
+    min: u32,
+    sec: u32,
+    tz: T,
+) -> Time {
+    Time::new(tz.borrow().with_ymd_and_hms(year, month, day, hour, min, sec).unwrap())
+}
 
 #[must_use]
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Display, Ord, PartialOrd)]
@@ -40,12 +53,13 @@ impl Time {
         Time::from_utc_timestamp(0, 0, tz)
     }
 
-    pub fn from_date(d: impl Into<chrono::Date<Tz>>) -> Self {
-        Self { t: d.into().and_hms(0, 0, 0) }
+    pub fn from_naive_date(d: NaiveDate, tz: Tz) -> Result<Self> {
+        Date::new(d, tz).time()
     }
 
     pub fn from_utc_timestamp(utc_secs: i64, utc_nanos: u32, tz: Tz) -> Self {
-        tz.from_utc_datetime(&NaiveDateTime::from_timestamp(utc_secs, utc_nanos)).into()
+        tz.from_utc_datetime(&NaiveDateTime::from_timestamp_opt(utc_secs, utc_nanos).unwrap())
+            .into()
     }
 
     pub fn from_utc_dec(utc_dec: Decimal, tz: Tz) -> Self {
@@ -76,9 +90,7 @@ impl Time {
     }
 
     pub fn from_local_date_fmt(s: &str, fmt: &str, tz: Tz) -> Result<Self> {
-        let d = tz.from_local_date(&NaiveDate::parse_from_str(s, fmt)?);
-        let d = d.single().ok_or_else(|| eyre!("no single representation for {}", s))?;
-        Ok(Self::from_date(d))
+        Self::from_naive_date(NaiveDate::parse_from_str(s, fmt)?, tz)
     }
 
     /// From a local time in ISO RFC3339 format.
@@ -148,12 +160,12 @@ impl Time {
         self.t.with_timezone(&tz).into()
     }
 
-    pub fn ymd(&self) -> Self {
-        Self::from_date(self.date())
+    pub fn ymd(&self) -> Result<Self> {
+        self.date().time()
     }
 
     pub fn date(&self) -> Date {
-        self.t.date().into()
+        Date::new(self.t.date_naive(), self.tz())
     }
 
     #[must_use]
@@ -188,11 +200,14 @@ impl Time {
 
 /// Time and date operations
 impl Time {
-    pub fn with_date(&self, d: impl Into<chrono::Date<Tz>>) -> Self {
+    /// Returns a time with the given date. If the time of day doesn't
+    /// exist on that date (because of daylight savings etc), returns
+    /// the next time that does exist.
+    pub fn with_date(&self, d: impl Into<NaiveDate>) -> Self {
         let d = d.into();
         let mut t = self.t.time();
         loop {
-            let localdt = d.naive_local().and_time(t);
+            let localdt = d.and_time(t);
             let v = self.tz().from_local_datetime(&localdt);
             match v {
                 LocalResult::None => {}
@@ -200,12 +215,14 @@ impl Time {
                 LocalResult::Ambiguous(min, max) => {
                     // Preserve the offset - so the apparent time e.g. 1:30 AM
                     // always stays the same. This isn't perfect but whatever.
-                    return Self::new(if min.offset() == d.offset() { min } else { max });
+                    return Self::new(if min.offset() == self.t.offset() { min } else { max });
                 }
             };
-            // Add an hour until we get past the non-existent block of time.
+            // Add a minute until we get past the non-existent block of time.
             // This can happen when a daylight savings adjustment leaves a gap.
-            t += chrono::Duration::hours(1);
+            // Assumes timezones only ever differ by whole minute amounts.
+            t += chrono::Duration::minutes(1);
+            t = t.with_second(0).unwrap();
         }
     }
 
@@ -297,30 +314,6 @@ impl From<DateTime<Tz>> for Time {
 impl From<Time> for DateTime<Tz> {
     fn from(v: Time) -> Self {
         v.t
-    }
-}
-
-impl From<chrono::Date<Tz>> for Time {
-    fn from(v: chrono::Date<Tz>) -> Self {
-        Self::from_date(v)
-    }
-}
-
-impl From<&chrono::Date<Tz>> for Time {
-    fn from(v: &chrono::Date<Tz>) -> Self {
-        Self::from_date(*v)
-    }
-}
-
-impl From<Date> for Time {
-    fn from(v: Date) -> Self {
-        Self::from_date(v)
-    }
-}
-
-impl From<&Date> for Time {
-    fn from(v: &Date) -> Self {
-        Self::from_date(*v)
     }
 }
 
@@ -431,36 +424,37 @@ impl EndpointConversion for Time {
 
 #[cfg(test)]
 mod tests {
-    use chrono::NaiveDateTime;
     use chrono_tz::Australia::Sydney;
     use chrono_tz::US::Eastern;
     use pretty_assertions::assert_eq;
+    use NaiveDateTime;
 
     use super::*;
+    use crate::date::ymd;
 
     #[test]
     fn set_date_with_different_daylight_savings() {
         // On same day:
-        let t = Time::new(Eastern.ymd(1994, 10, 27).and_hms(1, 44, 35));
-        let d = Eastern.ymd(1994, 10, 27);
+        let t = ymdhms(1994, 10, 27, 1, 44, 35, Eastern);
+        let d = ymd(1994, 10, 27, Eastern);
         assert_eq!(t, t.with_date(d));
 
         // On different days:
-        let t = Time::new(Eastern.ymd(1994, 4, 30).and_hms(1, 29, 11));
-        let d = Eastern.ymd(1994, 10, 30);
-        assert_eq!(Time::new(UTC.ymd(1994, 10, 30).and_hms(5, 29, 11)), t.with_date(d));
+        let t = ymdhms(1994, 4, 30, 1, 29, 11, Eastern);
+        let d = ymd(1994, 10, 30, Eastern);
+        assert_eq!(ymdhms(1994, 10, 30, 5, 29, 11, UTC), t.with_date(d));
     }
 
     #[test]
     fn nonexistent_set_date() {
-        let t = Time::new(Eastern.ymd(2017, 3, 5).and_hms(2, 57, 12));
-        let d = Eastern.ymd(2017, 3, 12);
-        assert_eq!(Time::new(UTC.ymd(2017, 3, 12).and_hms(7, 57, 12)), t.with_date(d));
+        let t = ymdhms(2017, 3, 5, 2, 57, 12, Eastern);
+        let d = ymd(2017, 3, 12, Eastern);
+        assert_eq!(ymdhms(2017, 3, 12, 7, 0, 0, UTC), t.with_date(d));
     }
 
     #[test]
     fn date_tz_conversion() -> Result<()> {
-        let expected = Time::from_date(Sydney.ymd(2018, 1, 30));
+        let expected = ymd(2018, 1, 30, Sydney).time()?;
         let d_str = "30 Jan 2018";
         assert_eq!(expected, Time::from_ymd("2018/1/30", Sydney)?);
         assert_eq!(expected, Time::from_local_date_fmt(d_str, "%d %b %Y", Sydney)?);
@@ -470,7 +464,7 @@ mod tests {
 
     #[test]
     fn datetime_tz_conversion() -> Result<()> {
-        let expected = Time::new(Sydney.ymd(2018, 1, 30).and_hms(6, 4, 57));
+        let expected = ymdhms(2018, 1, 30, 6, 4, 57, Sydney);
         let dt_str = "30 Jan 2018 06:04:57";
 
         assert_eq!(
@@ -487,7 +481,7 @@ mod tests {
 
     #[test]
     fn tz_conversion() -> Result<()> {
-        let dt = Time::new(Sydney.ymd(2018, 1, 30).and_hms(6, 4, 57));
+        let dt = ymdhms(2018, 1, 30, 6, 4, 57, Sydney);
         assert_eq!(dt, Time::from_local_iso("2018-01-30T06:04:57+11:00", Sydney)?);
         assert_eq!(dt, Time::from_local("2018-01-30T06:04:57", Sydney)?);
         assert_eq!("2018-01-30T06:04:57+11:00", dt.to_iso());
@@ -499,7 +493,7 @@ mod tests {
 
     #[test]
     fn serialization() -> Result<()> {
-        let dt = Time::new(Sydney.ymd(2018, 1, 30).and_hms(6, 4, 57));
+        let dt = ymdhms(2018, 1, 30, 6, 4, 57, Sydney);
         let se = serde_json::to_string(&dt)?;
         assert_eq!(se, "\"2018-01-30T06:04:57 Australia/Sydney\"");
         let de: Time = serde_json::from_str(&se)?;
@@ -509,7 +503,7 @@ mod tests {
 
     #[test]
     fn tz_change() {
-        let time = Time::new(Sydney.ymd(2018, 1, 30).and_hms(6, 4, 57));
+        let time = ymdhms(2018, 1, 30, 6, 4, 57, Sydney);
         // This shouldn't change the underlying time, just the timezone it's in.
         assert_eq!(time.utc_dec(), time.with_tz(Eastern).utc_dec());
     }
