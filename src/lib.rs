@@ -36,7 +36,7 @@
     clippy::too_many_lines,
     clippy::unreadable_literal
 )]
-#![feature(once_cell, trait_alias)]
+#![feature(lazy_cell, trait_alias)]
 
 pub mod calendars;
 pub mod cycles;

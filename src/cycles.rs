@@ -1,5 +1,4 @@
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
-
+use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 use derive_more::Display;
 use num_traits::ToPrimitive;
 use rust_decimal::Decimal;
@@ -39,106 +38,27 @@ impl Cycles {
     }
 }
 
-impl Add<Cycles> for Cycles {
-    type Output = Cycles;
+impl_op_ex!(+ |a: &Cycles, b: &Cycles| -> Cycles { Cycles { count: a.count + b.count } });
+impl_op_ex!(+= |a: &mut Cycles, b: &Cycles| { *a = *a + b });
 
-    fn add(self, d: Cycles) -> Self::Output {
-        Cycles { count: self.count + d.count }
-    }
-}
+impl_op_ex!(-|a: &Cycles, b: &Cycles| -> Cycles { Cycles { count: a.count - b.count } });
+impl_op_ex!(-= |a: &mut Cycles, b: &Cycles| { *a = *a - b });
 
-impl AddAssign<Cycles> for Cycles {
-    fn add_assign(&mut self, d: Cycles) {
-        self.count += d.count;
-    }
-}
+impl_op_ex!(/ |a: &Cycles, b: &Cycles| -> Decimal { a.count / b.count });
 
-impl Sub<Cycles> for Cycles {
-    type Output = Cycles;
+// cycle / dur = freq
+impl_op_ex!(/ |a: &Cycles, b: &Duration| -> Freq { Freq::new(*a, *b) });
 
-    fn sub(self, d: Cycles) -> Self::Output {
-        Cycles { count: self.count - d.count }
-    }
-}
-
-impl SubAssign<Cycles> for Cycles {
-    fn sub_assign(&mut self, d: Cycles) {
-        self.count -= d.count;
-    }
-}
-
-impl Div<Cycles> for Cycles {
-    type Output = Decimal;
-
-    fn div(self, o: Cycles) -> Self::Output {
-        self.count / o.count
-    }
-}
-
-/// cycle / dur = freq
-impl Div<Duration> for Cycles {
-    type Output = Freq;
-
-    fn div(self, o: Duration) -> Self::Output {
-        Freq::new(self, o)
-    }
-}
-
-/// dur * cycles = dur
-impl Mul<Duration> for Cycles {
-    type Output = Duration;
-
-    fn mul(self, o: Duration) -> Self::Output {
-        o * self.count
-    }
-}
-
-/// dur * cycles = dur
-impl Mul<Cycles> for Duration {
-    type Output = Duration;
-
-    fn mul(self, o: Cycles) -> Self::Output {
-        o.count * self
-    }
-}
+// dur * cycles = dur
+impl_op_ex_commutative!(*|a: &Cycles, b: &Duration| -> Duration { *b * a.count });
 
 macro_rules! cycle_ops {
     ($t:ty) => {
-        impl MulAssign<$t> for Cycles {
-            fn mul_assign(&mut self, rhs: $t) {
-                self.count *= Decimal::try_from(rhs).unwrap();
-            }
-        }
+        impl_op_ex_commutative!(* |a: & Cycles, b: &$t| -> Cycles { Cycles { count: a.count * Decimal::try_from(*b).unwrap() } });
+        impl_op_ex!(*= |a: &mut Cycles, b: &$t| { a.count *= Decimal::try_from(*b).unwrap() });
 
-        impl Mul<$t> for Cycles {
-            type Output = Cycles;
-
-            fn mul(self, rhs: $t) -> Self::Output {
-                Self { count: self.count * Decimal::try_from(rhs).unwrap() }
-            }
-        }
-
-        impl Mul<Cycles> for $t {
-            type Output = Cycles;
-
-            fn mul(self, rhs: Cycles) -> Self::Output {
-                Cycles { count: Decimal::try_from(self).unwrap() * rhs.count }
-            }
-        }
-
-        impl DivAssign<$t> for Cycles {
-            fn div_assign(&mut self, rhs: $t) {
-                self.count /= Decimal::try_from(rhs).unwrap();
-            }
-        }
-
-        impl Div<$t> for Cycles {
-            type Output = Cycles;
-
-            fn div(self, rhs: $t) -> Self::Output {
-                Self { count: self.count / Decimal::try_from(rhs).unwrap() }
-            }
-        }
+        impl_op_ex_commutative!(/ |a: & Cycles, b: &$t| -> Cycles { Cycles { count: a.count / Decimal::try_from(*b).unwrap() } });
+        impl_op_ex!(/= |a: &mut Cycles, b: &$t| { a.count /= Decimal::try_from(*b).unwrap() });
     };
 }
 

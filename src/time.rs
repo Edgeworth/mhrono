@@ -1,8 +1,8 @@
 use std::borrow::Borrow;
 use std::fmt;
-use std::ops::{Add, AddAssign, Sub, SubAssign};
 use std::str::FromStr;
 
+use auto_ops::impl_op_ex;
 use chrono::{DateTime, Datelike, LocalResult, NaiveDate, NaiveDateTime, TimeZone, Timelike, Utc};
 use chrono_tz::{Tz, UTC};
 use derive_more::Display;
@@ -323,41 +323,15 @@ impl From<Time> for f64 {
     }
 }
 
-impl Sub<Time> for Time {
-    type Output = Duration;
+impl_op_ex!(-|a: &Time, b: &Time| -> Duration { (a.utc_dec() - b.utc_dec()) * SEC });
 
-    fn sub(self, t: Time) -> Self::Output {
-        (self.utc_dec() - t.utc_dec()) * SEC
-    }
-}
+impl_op_ex!(-|a: &Time, b: &Duration| -> Time {
+    Time::from_utc_dec(a.utc_dec() - b.secs(), a.t.timezone())
+});
+impl_op_ex!(-= |a: &mut Time, b: &Duration| { *a = *a - b });
 
-impl Sub<Duration> for Time {
-    type Output = Time;
-
-    fn sub(self, d: Duration) -> Self::Output {
-        Self::from_utc_dec(self.utc_dec() - d.secs(), self.t.timezone())
-    }
-}
-
-impl SubAssign<Duration> for Time {
-    fn sub_assign(&mut self, d: Duration) {
-        *self = *self - d;
-    }
-}
-
-impl Add<Duration> for Time {
-    type Output = Time;
-
-    fn add(self, d: Duration) -> Self::Output {
-        Self::from_utc_dec(self.utc_dec() + d.secs(), self.t.timezone())
-    }
-}
-
-impl AddAssign<Duration> for Time {
-    fn add_assign(&mut self, d: Duration) {
-        *self = *self + d;
-    }
-}
+impl_op_ex!(+ |a: &Time, b: &Duration| -> Time { Time::from_utc_dec(a.utc_dec() + b.secs(), a.t.timezone()) });
+impl_op_ex!(+= |a: &mut Time, b: &Duration| { *a = *a + b });
 
 impl<'a> Deserialize<'a> for Time {
     fn deserialize<D: serde::Deserializer<'a>>(d: D) -> Result<Self, D::Error> {

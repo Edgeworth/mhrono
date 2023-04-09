@@ -83,6 +83,10 @@ impl<T> SpanAny<T> {
         Self { st: Endpoint::Unbounded { left: true }, en: Endpoint::Unbounded { left: false } }
     }
 
+    pub const fn is_unb(&self) -> bool {
+        matches!((&self.st, &self.en), (Endpoint::Unbounded { .. }, Endpoint::Unbounded { .. }))
+    }
+
     #[must_use]
     pub fn to_range_full(&self) -> Option<RangeFull> {
         match (&self.st, &self.en) {

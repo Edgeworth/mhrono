@@ -48,7 +48,7 @@ pub trait Series {
 
     /// Push the element into the backing storage. Returns true if we need
     /// to normalize the series (e.g. to maintain the sorted order).
-    fn checked_push(&mut self, elt: Self::V) -> Result<bool>;
+    fn unchecked_push(&mut self, elt: Self::V) -> Result<bool>;
 
     #[must_use]
     fn get_y(&self, idx: usize) -> Option<&Self::Y> {
@@ -106,7 +106,7 @@ pub trait Series {
 
     /// Pushes a new value into the series.
     fn push(&mut self, elt: Self::V) -> Result<()> {
-        if self.checked_push(elt)? {
+        if self.unchecked_push(elt)? {
             self.normalize()?;
         }
         Ok(())
@@ -234,6 +234,23 @@ pub trait Series {
         let st = self.slice().partition_point(|v| s.st >= Self::span_of(v).st);
         let en = self.slice().partition_point(|v| s.en >= Self::span_of(v).en);
         self.make_from_inner(self.inner().subseq(st..en))
+    }
+
+    #[must_use]
+    fn prefix(&self, n: usize) -> Self
+    where
+        Self: Sized,
+    {
+        self.make_from_inner(self.inner().subseq(..n))
+    }
+
+    #[must_use]
+    fn suffix(&self, n: usize) -> Self
+    where
+        Self: Sized,
+    {
+        let st = self.len().saturating_sub(n);
+        self.make_from_inner(self.inner().subseq(st..))
     }
 
     #[must_use]
