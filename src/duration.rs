@@ -1,9 +1,9 @@
 use std::fmt;
 use std::fmt::Write;
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 use std::str::FromStr;
 use std::sync::LazyLock;
 
+use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 use derive_more::Display;
 use eyre::{eyre, Result};
 use num_traits::ToPrimitive;
@@ -114,79 +114,22 @@ impl Default for Duration {
     }
 }
 
-impl Add<Duration> for Duration {
-    type Output = Duration;
+impl_op_ex!(+ |a: &Duration, b: &Duration| -> Duration {Duration::new(a.secs + b.secs) });
+impl_op_ex!(+= |a: &mut Duration, b: &Duration| { a.secs += b.secs });
 
-    fn add(self, d: Duration) -> Self::Output {
-        Duration::new(self.secs + d.secs)
-    }
-}
+impl_op_ex!(-|a: &Duration, b: &Duration| -> Duration { Duration::new(a.secs - b.secs) });
+impl_op_ex!(-= |a: &mut Duration, b: &Duration| { a.secs -= b.secs });
 
-impl AddAssign<Duration> for Duration {
-    fn add_assign(&mut self, d: Duration) {
-        self.secs += d.secs;
-    }
-}
-
-impl Sub<Duration> for Duration {
-    type Output = Duration;
-
-    fn sub(self, d: Duration) -> Self::Output {
-        Duration::new(self.secs - d.secs)
-    }
-}
-
-impl SubAssign<Duration> for Duration {
-    fn sub_assign(&mut self, d: Duration) {
-        self.secs -= d.secs;
-    }
-}
-
-impl Div<Duration> for Duration {
-    type Output = Decimal;
-
-    fn div(self, o: Duration) -> Self::Output {
-        self.secs / o.secs
-    }
-}
+impl_op_ex!(/ |a: &Duration, b: &Duration| -> Decimal { a.secs / b.secs });
 
 macro_rules! duration_ops {
     ($t:ty) => {
-        impl MulAssign<$t> for Duration {
-            fn mul_assign(&mut self, rhs: $t) {
-                self.secs *= Decimal::try_from(rhs).unwrap();
-            }
-        }
+        impl_op_ex_commutative!(* |a: &Duration, b: &$t| -> Duration { Duration::new(a.secs * Decimal::try_from(*b).unwrap()) });
+        impl_op_ex!(*= |a: &mut Duration, b: &$t| { a.secs *= Decimal::try_from(*b).unwrap() });
 
-        impl Mul<$t> for Duration {
-            type Output = Duration;
+        impl_op_ex!(/ |a: &Duration, b: &$t| -> Duration { Duration::new(a.secs / Decimal::try_from(*b).unwrap()) });
+        impl_op_ex!(/= |a: &mut Duration, b: &$t| { a.secs /= Decimal::try_from(*b).unwrap() });
 
-            fn mul(self, rhs: $t) -> Self::Output {
-                Self::new(self.secs * Decimal::try_from(rhs).unwrap())
-            }
-        }
-
-        impl Mul<Duration> for $t {
-            type Output = Duration;
-
-            fn mul(self, rhs: Duration) -> Self::Output {
-                Duration::new(Decimal::try_from(self).unwrap() * rhs.secs)
-            }
-        }
-
-        impl DivAssign<$t> for Duration {
-            fn div_assign(&mut self, rhs: $t) {
-                self.secs /= Decimal::try_from(rhs).unwrap();
-            }
-        }
-
-        impl Div<$t> for Duration {
-            type Output = Duration;
-
-            fn div(self, rhs: $t) -> Self::Output {
-                Self::new(self.secs / Decimal::try_from(rhs).unwrap())
-            }
-        }
     };
 }
 

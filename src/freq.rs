@@ -1,9 +1,9 @@
 use std::cmp::Ordering;
 use std::fmt;
 use std::hash::{Hash, Hasher};
-use std::ops::{Div, DivAssign, Mul, MulAssign};
 use std::str::FromStr;
 
+use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 use derive_more::Display;
 use eyre::Result;
 use num_traits::ToPrimitive;
@@ -106,80 +106,24 @@ impl Freq {
     }
 }
 
-impl Div<Freq> for Freq {
-    type Output = Decimal;
+impl_op_ex!(/ |a: &Freq, b: &Freq| -> Decimal { (a.num * b.denom) / (b.num * a.denom) });
 
-    fn div(self, o: Freq) -> Self::Output {
-        (self.num * o.denom) / (o.num * self.denom)
-    }
-}
+// cycle / freq = dur
+impl_op_ex!(/ |a: &Cycles, b: &Freq| -> Duration { Duration::new(a.count() * b.denom / b.num) });
 
-/// cycle / freq = dur
-impl Div<Freq> for Cycles {
-    type Output = Duration;
-
-    fn div(self, o: Freq) -> Self::Output {
-        Duration::new(self.count() * o.denom / o.num)
-    }
-}
-
-/// dur * freq = cycles
-impl Mul<Duration> for Freq {
-    type Output = Cycles;
-
-    fn mul(self, o: Duration) -> Self::Output {
-        Cycles::new(o.secs() * self.num / self.denom)
-    }
-}
-
-/// dur * freq = cycles
-impl Mul<Freq> for Duration {
-    type Output = Cycles;
-
-    fn mul(self, o: Freq) -> Self::Output {
-        o * self
-    }
-}
+// dur * freq = cycles
+impl_op_ex_commutative!(*|a: &Freq, b: &Duration| -> Cycles {
+    Cycles::new(b.secs() * a.num / a.denom)
+});
 
 macro_rules! freq_ops {
     ($t:ty) => {
-        impl MulAssign<$t> for Freq {
-            fn mul_assign(&mut self, rhs: $t) {
-                self.num *= Decimal::try_from(rhs).unwrap();
-            }
-        }
 
-        impl Mul<$t> for Freq {
-            type Output = Freq;
+        impl_op_ex_commutative!(* |a: &Freq, b: &$t| -> Freq { Freq { num: a.num * Decimal::try_from(*b).unwrap(), denom: a.denom } });
+        impl_op_ex!(*= |a: &mut Freq, b: &$t| { a.num *= Decimal::try_from(*b).unwrap() });
 
-            fn mul(self, rhs: $t) -> Self::Output {
-                Self { num: self.num * Decimal::try_from(rhs).unwrap(), denom: self.denom }
-            }
-        }
-
-        impl Mul<Freq> for $t {
-            type Output = Freq;
-
-            fn mul(self, rhs: Freq) -> Self::Output {
-                Freq { num: Decimal::try_from(self).unwrap() * rhs.num, denom: rhs.denom }
-            }
-        }
-
-        impl DivAssign<$t> for Freq {
-            #[allow(clippy::suspicious_op_assign_impl)]
-            fn div_assign(&mut self, rhs: $t) {
-                self.denom *= Decimal::try_from(rhs).unwrap();
-            }
-        }
-
-        impl Div<$t> for Freq {
-            type Output = Freq;
-
-            #[allow(clippy::suspicious_arithmetic_impl)]
-            fn div(self, rhs: $t) -> Self::Output {
-                Self { num: self.num, denom: self.denom * Decimal::try_from(rhs).unwrap() }
-            }
-        }
+        impl_op_ex!(/ |a: &Freq, b: &$t| -> Freq { Freq { num: a.num, denom: a.denom * Decimal::try_from(*b).unwrap() } });
+        impl_op_ex!(/= |a: &mut Freq, b: &$t| { a.denom *= Decimal::try_from(*b).unwrap() });
     };
 }
 

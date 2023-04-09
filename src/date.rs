@@ -1,11 +1,14 @@
 use std::borrow::Borrow;
 use std::cmp::Ordering;
+use std::fmt;
+use std::str::FromStr;
 
 use chrono::{Datelike, Month, NaiveDate, TimeZone};
 use chrono_tz::{Tz, UTC};
-use derive_more::Display;
 use eyre::{eyre, Result};
 use num_traits::FromPrimitive;
+use serde::de::{self, Visitor};
+use serde::{Deserialize, Serialize};
 
 use crate::op::{DOp, DateOp};
 use crate::span::endpoint::EndpointConversion;
@@ -28,11 +31,16 @@ pub enum Day {
 }
 
 #[must_use]
-#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Display)]
-#[display(fmt = "{d}")]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct Date {
     d: NaiveDate,
     tz: Tz,
+}
+
+impl fmt::Display for Date {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.fmt("%Y-%m-%d"))
+    }
 }
 
 impl Ord for Date {
@@ -65,8 +73,16 @@ impl Date {
     }
 
     #[must_use]
-    pub fn format(&self, f: &str) -> String {
+    pub fn fmt(&self, f: &str) -> String {
         self.d.format(f).to_string()
+    }
+
+    pub fn from_ymd(s: &str, tz: Tz) -> Result<Self> {
+        Self::from_fmt(s, "%Y-%m-%d", tz)
+    }
+
+    pub fn from_fmt(s: &str, fmt: &str, tz: Tz) -> Result<Self> {
+        Ok(Self { d: NaiveDate::parse_from_str(s, fmt)?, tz })
     }
 
     #[must_use]
@@ -179,5 +195,40 @@ impl EndpointConversion for Date {
     fn to_closed(p: &Self, left: bool) -> Option<Self> {
         let d = if left { p.d.succ_opt() } else { p.d.pred_opt() };
         d.map(|d| Self::new(d, p.tz()))
+    }
+}
+
+impl<'a> Deserialize<'a> for Date {
+    fn deserialize<D: serde::Deserializer<'a>>(d: D) -> Result<Self, D::Error> {
+        struct DateVisitor;
+
+        impl Visitor<'_> for DateVisitor {
+            type Value = Date;
+
+            fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.write_str("date string %Y-%m-%d and timezone name")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Date, E>
+            where
+                E: de::Error,
+            {
+                let mut s = v.split_whitespace();
+                let local =
+                    s.next().ok_or_else(|| eyre!("missing timestamp")).map_err(E::custom)?;
+                let tz = s.next().ok_or_else(|| eyre!("missing timezone")).map_err(E::custom)?;
+                let tz = Tz::from_str(tz).map_err(E::custom)?;
+                let time = Date::from_ymd(local, tz).map_err(E::custom)?;
+                Ok(time)
+            }
+        }
+
+        d.deserialize_string(DateVisitor)
+    }
+}
+
+impl Serialize for Date {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(&(self.fmt("%Y-%m-%d") + " " + self.tz().name()))
     }
 }

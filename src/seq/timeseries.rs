@@ -56,7 +56,7 @@ impl<Y: Clone> Series for TimeSeries<Y> {
         Ok(())
     }
 
-    fn checked_push(&mut self, elt: Self::V) -> Result<bool> {
+    fn unchecked_push(&mut self, elt: Self::V) -> Result<bool> {
         let needs_sort = if let Some(last) = self.last() { last.0 > Self::x(&elt) } else { false };
         self.inner.push(elt);
         Ok(needs_sort)
