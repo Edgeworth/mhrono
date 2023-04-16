@@ -1,7 +1,7 @@
 use std::fmt;
 use std::fmt::Write;
+use std::iter::once;
 use std::str::FromStr;
-use std::sync::LazyLock;
 
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 use derive_more::Display;
@@ -9,7 +9,6 @@ use eyre::{eyre, Result};
 use num_traits::ToPrimitive;
 use rand::distributions::uniform::{SampleBorrow, SampleUniform, UniformFloat, UniformSampler};
 use rand::prelude::*;
-use regex::Regex;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use serde::de::{self, Visitor};
@@ -92,16 +91,36 @@ impl Duration {
     }
 
     pub fn from_human(s: &str) -> Result<Duration> {
-        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(\d+)([a-z]+)").unwrap());
         let mut dur = Duration::zero();
-        for caps in RE.captures_iter(s) {
-            let caps: Vec<_> = caps.iter().collect();
-            let count =
-                caps.get(1).unwrap().ok_or_else(|| eyre!("invalid"))?.as_str().parse::<i64>()?;
-            let ident = caps.get(2).unwrap().ok_or_else(|| eyre!("invalid"))?.as_str();
-            let base =
-                BASES.iter().find(|v| v.0 == ident).ok_or_else(|| eyre!("unknown duration"))?;
-            dur += base.1 * count;
+
+        // First character must be a digit:
+        if s.is_empty() {
+            return Err(eyre!("empty duration"));
+        }
+        if !s.chars().next().unwrap().is_ascii_digit() {
+            return Err(eyre!("duration must start with a digit"));
+        }
+
+        let mut cur_number = 0;
+        let mut cur_ident = String::new();
+        let mut is_digit = true;
+        for c in s.chars().chain(once('0')) {
+            if let Some(digit) = c.to_digit(10) {
+                if !is_digit {
+                    let base = BASES
+                        .iter()
+                        .find(|v| v.0 == cur_ident)
+                        .ok_or_else(|| eyre!("unknown duration"))?;
+                    dur += cur_number * base.1;
+                    cur_number = 0;
+                    cur_ident.clear();
+                }
+                cur_number = cur_number * 10 + digit as i64;
+                is_digit = true;
+            } else {
+                cur_ident.push(c);
+                is_digit = false;
+            }
         }
 
         Ok(dur)
