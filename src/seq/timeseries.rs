@@ -63,4 +63,4 @@ impl<Y: Clone> Series for TimeSeries<Y> {
     }
 }
 
-series_ops!(TimeSeries<Y>, <Y: Clone>);
+series_ops!(TimeSeries<Y>; Y: Clone);

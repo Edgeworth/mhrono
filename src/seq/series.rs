@@ -293,9 +293,9 @@ pub trait Series {
 
 #[macro_export]
 macro_rules! series_ops {
-    ($t:ty) => {series_ops!($t, <>);};
-    ($t:ty, $($bounds:tt)*) => {
-        impl$($bounds)* std::ops::Index<usize> for $t {
+    ($t:ty) => { series_ops!($t;); };
+    ($t:ty; $($bounds:tt)*) => {
+        impl<$($bounds)*> std::ops::Index<usize> for $t {
             type Output = <Self as Series>::V;
 
             fn index(&self, index: usize) -> &Self::Output {
@@ -303,9 +303,18 @@ macro_rules! series_ops {
             }
         }
 
-        impl$($bounds)* std::ops::IndexMut<usize> for $t {
+        impl<$($bounds)*> std::ops::IndexMut<usize> for $t {
             fn index_mut(&mut self, index: usize) -> &mut Self::Output {
                 self.get_mut(index).unwrap()
+            }
+        }
+
+        impl<'a, $($bounds)*> IntoIterator for &'a $t {
+            type Item = &'a <$t as Series>::V;
+            type IntoIter = std::slice::Iter<'a, <$t as Series>::V>;
+
+            fn into_iter(self) -> Self::IntoIter {
+                self.iter()
             }
         }
     };

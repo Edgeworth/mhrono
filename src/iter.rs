@@ -1,7 +1,7 @@
 use derive_more::Display;
 
 use crate::date::Date;
-use crate::op::{DOp, DateOp, TimeOp};
+use crate::op::{DateOp, TimeOp};
 use crate::time::Time;
 
 #[must_use]
@@ -45,11 +45,11 @@ pub struct DateIter {
 
 impl DateIter {
     pub fn day<A: Into<Date>>(st: A, en: A) -> Self {
-        Self { d: st.into(), en: en.into(), op: Date::op(DOp::AddDays, 1) }
+        Self { d: st.into(), en: en.into(), op: DateOp::add_days(1) }
     }
 
     pub fn year<A: Into<Date>>(st: A, en: A) -> Self {
-        Self { d: st.into(), en: en.into(), op: Date::op(DOp::AddYears, 1) }
+        Self { d: st.into(), en: en.into(), op: DateOp::add_years(1) }
     }
 }
 

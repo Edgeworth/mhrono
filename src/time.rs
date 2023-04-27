@@ -75,6 +75,10 @@ impl Time {
     pub fn op(op: TOp, n: i64) -> TimeOp {
         TimeOp::new(op, n)
     }
+
+    pub fn apply(&self, op: TimeOp) -> Self {
+        op.apply(*self)
+    }
 }
 
 /// String related functions

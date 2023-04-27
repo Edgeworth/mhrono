@@ -5,7 +5,7 @@ use chrono_tz::US::Eastern;
 use crate::calendars::calendar::DaySet;
 use crate::date::{ymd, Date, Day};
 use crate::iter::DateIter;
-use crate::op::DOp;
+use crate::op::DateOp;
 
 #[allow(clippy::unnecessary_wraps)]
 fn sun_to_mon(d: Date) -> Option<Date> {
@@ -28,7 +28,7 @@ fn nearest_workday(d: Date) -> Option<Date> {
 
 fn next_tuesday_every_four_years(d: Date) -> Option<Date> {
     if d.year() % 4 == 0 {
-        Some(Date::op(DOp::FindTue, 1).apply(d))
+        Some(DateOp::find_tue(1).apply(d))
     } else {
         None
     }
@@ -36,8 +36,8 @@ fn next_tuesday_every_four_years(d: Date) -> Option<Date> {
 
 #[allow(clippy::unnecessary_wraps)]
 fn day_after_4th_thu(d: Date) -> Option<Date> {
-    let d = Date::op(DOp::FindThu, 4).apply(d);
-    Some(Date::op(DOp::AddDays, 1).apply(d))
+    let d = DateOp::find_thu(4).apply(d);
+    Some(DateOp::add_days(1).apply(d))
 }
 
 #[allow(clippy::many_single_char_names, clippy::unnecessary_wraps)]
@@ -65,7 +65,7 @@ pub static SUNDAY: LazyLock<DaySet> = LazyLock::new(|| {
 pub static GOOD_FRIDAY: LazyLock<DaySet> = LazyLock::new(|| {
     DaySet::new()
         .with_md(1, 1)
-        .with_observance(|d| easter(d).map(|d| Date::op(DOp::AddDays, -2).apply(d)))
+        .with_observance(|d| easter(d).map(|d| DateOp::add_days(-2).apply(d)))
 });
 pub static US_NEW_YEARS_DAY: LazyLock<DaySet> =
     LazyLock::new(|| DaySet::new().with_md(1, 1).with_observance(sun_to_mon));
@@ -73,13 +73,13 @@ pub static US_MARTIN_LUTHER_KING_JR_AFTER1998: LazyLock<DaySet> = LazyLock::new(
     DaySet::new()
         .with_md(1, 1)
         .with_start(ymd(1998, 1, 1, Eastern))
-        .with_observance(|d| Some(Date::op(DOp::FindMon, 3).apply(d)))
+        .with_observance(|d| Some(DateOp::find_mon(3).apply(d)))
 });
 pub static US_PRESIDENTS_DAY: LazyLock<DaySet> = LazyLock::new(|| {
     DaySet::new()
         .with_md(2, 1)
         .with_start(ymd(1971, 1, 1, Eastern))
-        .with_observance(|d| Some(Date::op(DOp::FindMon, 3).apply(d)))
+        .with_observance(|d| Some(DateOp::find_mon(3).apply(d)))
 });
 pub static US_LINCOLNS_BIRTH_DAY_BEFORE1954: LazyLock<DaySet> = LazyLock::new(|| {
     DaySet::new()
@@ -106,7 +106,7 @@ pub static US_MEMORIAL_DAY: LazyLock<DaySet> = LazyLock::new(|| {
     DaySet::new()
         .with_md(5, 25)
         .with_start(ymd(1971, 1, 1, Eastern))
-        .with_observance(|d| Some(Date::op(DOp::FindMon, 1).apply(d)))
+        .with_observance(|d| Some(DateOp::find_mon(1).apply(d)))
 });
 pub static US_MEMORIAL_DAY_BEFORE1964: LazyLock<DaySet> = LazyLock::new(|| {
     DaySet::new().with_md(5, 30).with_end(ymd(1963, 12, 31, Eastern)).with_observance(sun_to_mon)
@@ -146,7 +146,7 @@ pub static FRIDAY_AFTER_INDEPENDENCE_DAY_PRE2013: LazyLock<DaySet> = LazyLock::n
         .with_observance(|d: Date| (d.weekday() == Day::Fri).then_some(d))
 });
 pub static US_LABOR_DAY: LazyLock<DaySet> = LazyLock::new(|| {
-    DaySet::new().with_md(9, 1).with_observance(|d| Some(Date::op(DOp::FindMon, 1).apply(d)))
+    DaySet::new().with_md(9, 1).with_observance(|d| Some(DateOp::find_mon(1).apply(d)))
 });
 pub static US_COLUMBUS_DAY_BEFORE1954: LazyLock<DaySet> = LazyLock::new(|| {
     DaySet::new().with_md(10, 12).with_end(ymd(1953, 12, 31, Eastern)).with_observance(sun_to_mon)
@@ -155,7 +155,7 @@ pub static US_THANKSGIVING_DAY: LazyLock<DaySet> = LazyLock::new(|| {
     DaySet::new()
         .with_md(11, 1)
         .with_start(ymd(1942, 1, 1, Eastern))
-        .with_observance(|d| Some(Date::op(DOp::FindThu, 4).apply(d)))
+        .with_observance(|d| Some(DateOp::find_thu(4).apply(d)))
 });
 pub static US_BLACK_FRIDAY_BEFORE1993: LazyLock<DaySet> = LazyLock::new(|| {
     DaySet::new()
@@ -175,7 +175,7 @@ pub static US_ELECTION_DAY1848TO1967: LazyLock<DaySet> = LazyLock::new(|| {
         .with_md(11, 2)
         .with_start(ymd(1848, 1, 1, Eastern))
         .with_end(ymd(1967, 12, 31, Eastern))
-        .with_observance(|d| Some(Date::op(DOp::FindTue, 1).apply(d)))
+        .with_observance(|d| Some(DateOp::find_tue(1).apply(d)))
 });
 pub static US_ELECTION_DAY1968TO1980: LazyLock<DaySet> = LazyLock::new(|| {
     DaySet::new()
@@ -196,14 +196,14 @@ pub static US_THANKSGIVING_DAY_BEFORE1939: LazyLock<DaySet> = LazyLock::new(|| {
         .with_md(11, 30)
         .with_start(ymd(1864, 1, 1, Eastern))
         .with_end(ymd(1938, 12, 31, Eastern))
-        .with_observance(|d| Some(Date::op(DOp::FindThu, -1).apply(d)))
+        .with_observance(|d| Some(DateOp::find_thu(-1).apply(d)))
 });
 pub static US_THANKSGIVING_DAY1939TO1941: LazyLock<DaySet> = LazyLock::new(|| {
     DaySet::new()
         .with_md(11, 30)
         .with_start(ymd(1939, 1, 1, Eastern))
         .with_end(ymd(1941, 12, 31, Eastern))
-        .with_observance(|d| Some(Date::op(DOp::FindThu, -2).apply(d)))
+        .with_observance(|d| Some(DateOp::find_thu(-2).apply(d)))
 });
 pub static CHRISTMAS_EVE_BEFORE1993: LazyLock<DaySet> = LazyLock::new(|| {
     DaySet::new().with_md(12, 24).with_end(ymd(1993, 1, 1, Eastern)).with_observance(is_mon_to_thu)
