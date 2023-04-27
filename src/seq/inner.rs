@@ -27,6 +27,16 @@ impl<V: Clone> SeriesInner<V> {
     }
 
     #[must_use]
+    pub fn len(&self) -> usize {
+        self.en - self.st
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    #[must_use]
     pub fn slice(&self) -> &[V] {
         &self.data[self.st..self.en]
     }
@@ -47,6 +57,20 @@ impl<V: Clone> SeriesInner<V> {
             self.data_mut().push(elt);
         }
         self.en += 1;
+    }
+
+    pub fn pop(&mut self) -> Option<V> {
+        if self.is_empty() {
+            return None;
+        }
+        let ret = if self.en == self.data.len() {
+            // Can avoid cloning if the range goes to the end.
+            Arc::make_mut(&mut self.data).pop()
+        } else {
+            self.data_mut().pop()
+        };
+        self.en -= 1;
+        ret
     }
 
     pub fn subseq(&self, range: impl RangeBounds<usize>) -> Self {

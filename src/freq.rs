@@ -195,7 +195,6 @@ pub const WEEKLY: Freq = Freq::new(Cycles::one(), WEEK);
 
 #[cfg(test)]
 mod tests {
-
     use pretty_assertions::assert_eq;
 
     use super::*;

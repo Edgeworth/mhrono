@@ -94,6 +94,10 @@ impl Date {
         DateOp::new(op, n)
     }
 
+    pub fn apply(&self, op: DateOp) -> Self {
+        op.apply(*self)
+    }
+
     #[must_use]
     pub fn tz(&self) -> Tz {
         self.tz

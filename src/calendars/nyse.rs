@@ -21,8 +21,7 @@ use crate::calendars::us_holidays::{
     WEDNESDAY_BEFORE_INDEPENDENCE_DAY_POST2013,
 };
 use crate::date::ymd;
-use crate::op::{SpanOp, TOp};
-use crate::time::Time;
+use crate::op::{SpanOp, TimeOp};
 
 // Exchange calendar for NYSE
 //
@@ -117,7 +116,7 @@ pub fn get_nyse() -> Calendar {
     Calendar::new(
         "NYSE",
         Eastern,
-        &[SpanOp::new(Time::op(TOp::AddMins, 570), Time::op(TOp::AddHours, 16))],
+        &[SpanOp::new(TimeOp::add_mins(570), TimeOp::add_hours(16))],
         &[
             &SATURDAY,
             &SUNDAY,
@@ -162,7 +161,7 @@ pub fn get_nyse() -> Calendar {
         ],
         &[
             (
-                &[SpanOp::new(Time::op(TOp::AddMins, 570), Time::op(TOp::AddHours, 13))],
+                &[SpanOp::new(TimeOp::add_mins(570), TimeOp::add_hours(13))],
                 &[
                     &MON_TUES_THURS_BEFORE_INDEPENDENCE_DAY,
                     &FRIDAY_AFTER_INDEPENDENCE_DAY_PRE2013,
@@ -173,7 +172,7 @@ pub fn get_nyse() -> Calendar {
                 ],
             ),
             (
-                &[SpanOp::new(Time::op(TOp::AddMins, 570), Time::op(TOp::AddHours, 14))],
+                &[SpanOp::new(TimeOp::add_mins(570), TimeOp::add_hours(14))],
                 &[&CHRISTMAS_EVE_BEFORE1993, &US_BLACK_FRIDAY_BEFORE1993],
             ),
         ],
