@@ -60,12 +60,6 @@ pub trait Series {
         self.slice().get(idx)
     }
 
-    /// Note: may be expensive if there are other owners.
-    #[must_use]
-    fn get_mut(&mut self, idx: usize) -> Option<&mut Self::V> {
-        self.inner_mut().data_mut().get_mut(idx)
-    }
-
     fn iter(&self) -> Iter<'_, Self::V> {
         self.slice().iter()
     }
@@ -321,12 +315,6 @@ macro_rules! series_ops {
 
             fn index(&self, index: usize) -> &Self::Output {
                 self.get(index).unwrap()
-            }
-        }
-
-        impl<$($bounds)*> std::ops::IndexMut<usize> for $t {
-            fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-                self.get_mut(index).unwrap()
             }
         }
 

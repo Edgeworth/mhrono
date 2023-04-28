@@ -1,5 +1,44 @@
-use std::ops::{Bound, RangeBounds};
+use std::ops::{Bound, Deref, DerefMut, RangeBounds};
 use std::sync::Arc;
+
+/// Prevents others from modifying `SeriesInner` while we allow outside operations
+/// on the underlying data.
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct SeriesGuard<'a, V: Clone> {
+    inner: &'a mut SeriesInner<V>,
+}
+
+impl<'a, V: Clone> SeriesGuard<'a, V> {
+    #[must_use]
+    pub fn vec(&self) -> &Vec<V> {
+        &self.inner.data
+    }
+
+    pub fn vec_mut(&mut self) -> &mut Vec<V> {
+        Arc::make_mut(&mut self.inner.data)
+    }
+}
+
+impl<'a, V: Clone> Deref for SeriesGuard<'a, V> {
+    type Target = Vec<V>;
+
+    fn deref(&self) -> &Self::Target {
+        self.vec()
+    }
+}
+
+impl<'a, V: Clone> DerefMut for SeriesGuard<'a, V> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.vec_mut()
+    }
+}
+
+impl<'a, V: Clone> Drop for SeriesGuard<'a, V> {
+    fn drop(&mut self) {
+        self.inner.st = 0;
+        self.inner.en = self.inner.data.len();
+    }
+}
 
 #[must_use]
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone)]
@@ -41,38 +80,38 @@ impl<V: Clone> SeriesInner<V> {
         &self.data[self.st..self.en]
     }
 
-    pub fn data_mut(&mut self) -> &mut Vec<V> {
+    pub fn data_mut(&mut self) -> SeriesGuard<'_, V> {
         // Have to move to new backing storage if we have a subsequence set.
         if self.st != 0 || self.en != self.data.len() {
             self.data = Arc::new(self.slice().to_vec());
             self.st = 0;
             self.en = self.data.len();
         }
-        Arc::make_mut(&mut self.data)
+
+        SeriesGuard { inner: self }
     }
 
     pub fn push(&mut self, elt: V) {
         if self.en == self.data.len() {
             // Can (potentially) avoid cloning if the range goes to the end.
             Arc::make_mut(&mut self.data).push(elt);
+            self.en += 1;
         } else {
             self.data_mut().push(elt);
         }
-        self.en += 1;
     }
 
     pub fn pop(&mut self) -> Option<V> {
         if self.is_empty() {
             return None;
         }
-        let ret = if self.en == self.data.len() {
+        if self.en == self.data.len() {
             // Can (potentially) avoid cloning if the range goes to the end.
+            self.en -= 1;
             Arc::make_mut(&mut self.data).pop()
         } else {
             self.data_mut().pop()
-        };
-        self.en -= 1;
-        ret
+        }
     }
 
     pub fn subseq(&self, range: impl RangeBounds<usize>) -> Self {
@@ -137,7 +176,7 @@ mod tests {
         let mut series = SeriesInner::new(vec![1, 2, 3]);
         series.st = 1;
         let data_mut = series.data_mut();
-        assert_eq!(data_mut, &mut vec![2, 3]);
+        assert_eq!(data_mut.vec(), &vec![2, 3]);
     }
 
     #[test]
@@ -246,5 +285,33 @@ mod tests {
         assert_eq!(subseries_one_sided_right.slice(), &[3, 4]);
         assert_eq!(subseries_one_sided_right.st, 2);
         assert_eq!(subseries_one_sided_right.en, 4);
+    }
+
+    #[test]
+    fn test_data_mut_modify_vec_push() {
+        let mut series = SeriesInner::new(vec![1, 2, 3]);
+
+        {
+            let mut data_mut = series.data_mut();
+            data_mut.push(4);
+            data_mut.push(5);
+            data_mut.push(6);
+        }
+
+        assert_eq!(series.len(), 6);
+        assert_eq!(series.slice(), &[1, 2, 3, 4, 5, 6]);
+    }
+
+    #[test]
+    fn test_data_mut_modify_vec_pop() {
+        let mut series = SeriesInner::new(vec![1, 2, 3]);
+
+        {
+            let mut data_mut = series.data_mut();
+            assert_eq!(data_mut.pop(), Some(3));
+        }
+
+        assert_eq!(series.len(), 2);
+        assert_eq!(series.slice(), &[1, 2]);
     }
 }
