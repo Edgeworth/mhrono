@@ -215,6 +215,27 @@ pub trait Series {
         self.lookup_at_or_after_idx(x).and_then(|idx| self.get(idx))
     }
 
+    /// Lookup the index of the record which comes before |x|.
+    fn lookup_after_idx(&self, x: Self::X) -> Option<usize> {
+        let idx = self.upper_bound_idx(x)?;
+
+        if Self::span_of(self.get(idx)?).contains(&x) {
+            if idx + 1 < self.len() {
+                Some(idx + 1)
+            } else {
+                None
+            }
+        } else {
+            Some(idx)
+        }
+    }
+
+    /// Lookup the record which comes after |x|.
+    #[must_use]
+    fn lookup_after(&self, x: Self::X) -> Option<&Self::V> {
+        self.lookup_after_idx(x).and_then(|idx| self.get(idx))
+    }
+
     /// Returns (cheaply) a subsequence of the series which contains all
     /// elements fully contained within the given span.
     #[must_use]
