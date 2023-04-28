@@ -16,21 +16,25 @@ pub enum TOp {
     AdvFri = 4,
     AdvSat = 5,
     AdvSun = 6,
+    AdvDay = 7,
+    AdvMonth = 8,
     // Find* is like Adv* but won't advance if it's already the given day.
-    FindMon = 7,
-    FindTue = 8,
-    FindWed = 9,
-    FindThu = 10,
-    FindFri = 11,
-    FindSat = 12,
-    FindSun = 13,
-    AddYears = 14,
-    AddMonths = 15,
-    AddDays = 16,
-    SetYear = 17,
-    SetMonth = 18,
-    SetDay = 19,
-    Nop = 20,
+    FindMon = 9,
+    FindTue = 10,
+    FindWed = 11,
+    FindThu = 12,
+    FindFri = 13,
+    FindSat = 14,
+    FindSun = 15,
+    FindDay = 16,
+    FindMonth = 17,
+    AddYears = 18,
+    AddMonths = 19,
+    AddDays = 20,
+    SetYear = 21,
+    SetMonth = 22,
+    SetDay = 23,
+    Nop = 24,
     AddHours,
     AddMins,
     AddSecs,
@@ -85,6 +89,14 @@ impl TimeOp {
         Self::new(TOp::AdvSun, n)
     }
 
+    pub const fn advance_day(n: i64) -> Self {
+        Self::new(TOp::AdvDay, n)
+    }
+
+    pub const fn advance_month(n: i64) -> Self {
+        Self::new(TOp::AdvMonth, n)
+    }
+
     pub const fn find_mon(n: i64) -> Self {
         Self::new(TOp::FindMon, n)
     }
@@ -111,6 +123,14 @@ impl TimeOp {
 
     pub const fn find_sun(n: i64) -> Self {
         Self::new(TOp::FindSun, n)
+    }
+
+    pub const fn find_day(n: i64) -> Self {
+        Self::new(TOp::FindDay, n)
+    }
+
+    pub const fn find_month(n: i64) -> Self {
+        Self::new(TOp::FindMonth, n)
     }
 
     pub const fn add_years(n: i64) -> Self {
@@ -248,21 +268,25 @@ pub enum DOp {
     AdvFri = 4,
     AdvSat = 5,
     AdvSun = 6,
+    AdvDay = 7,
+    AdvMonth = 8,
     // Find* is like Adv* but won't advance if it's already the given day.
-    FindMon = 7,
-    FindTue = 8,
-    FindWed = 9,
-    FindThu = 10,
-    FindFri = 11,
-    FindSat = 12,
-    FindSun = 13,
-    AddYears = 14,
-    AddMonths = 15,
-    AddDays = 16,
-    SetYear = 17,
-    SetMonth = 18,
-    SetDay = 19,
-    Nop = 20,
+    FindMon = 9,
+    FindTue = 10,
+    FindWed = 11,
+    FindThu = 12,
+    FindFri = 13,
+    FindSat = 14,
+    FindSun = 15,
+    FindDay = 16,
+    FindMonth = 17,
+    AddYears = 18,
+    AddMonths = 19,
+    AddDays = 20,
+    SetYear = 21,
+    SetMonth = 22,
+    SetDay = 23,
+    Nop = 24,
 }
 
 #[must_use]
@@ -305,6 +329,14 @@ impl DateOp {
         Self::new(DOp::AdvSun, n)
     }
 
+    pub const fn advance_day(n: i64) -> Self {
+        Self::new(DOp::AdvDay, n)
+    }
+
+    pub const fn advance_month(n: i64) -> Self {
+        Self::new(DOp::AdvMonth, n)
+    }
+
     pub const fn find_mon(n: i64) -> Self {
         Self::new(DOp::FindMon, n)
     }
@@ -331,6 +363,14 @@ impl DateOp {
 
     pub const fn find_sun(n: i64) -> Self {
         Self::new(DOp::FindSun, n)
+    }
+
+    pub const fn find_day(n: i64) -> Self {
+        Self::new(DOp::FindDay, n)
+    }
+
+    pub const fn find_month(n: i64) -> Self {
+        Self::new(DOp::FindMonth, n)
     }
 
     pub const fn add_years(n: i64) -> Self {
@@ -383,6 +423,38 @@ fn apply_dop(d: Date, op: DOp, n: i64) -> Date {
         DOp::AddYears => d.add_years(n as i32),
         DOp::AddMonths => d.add_months(n as i32),
         DOp::AddDays => d.add_days(n as i32),
+        DOp::AdvDay => {
+            let n = d.with_day(n as u32);
+            if n <= d {
+                n.add_months(1)
+            } else {
+                n
+            }
+        }
+        DOp::AdvMonth => {
+            let n = d.with_month(n as u32);
+            if n <= d {
+                n.add_years(1)
+            } else {
+                n
+            }
+        }
+        DOp::FindDay => {
+            let n = d.with_day(n as u32);
+            if n < d {
+                n.add_months(1)
+            } else {
+                n
+            }
+        }
+        DOp::FindMonth => {
+            let n = d.with_month(n as u32);
+            if n < d {
+                n.add_years(1)
+            } else {
+                n
+            }
+        }
         _ if (DOp::AdvMon..=DOp::AdvSun).contains(&op) => {
             let offset = (op as i32 - DOp::AdvMon as i32 - d.weekday() as i32).rem_euclid(7);
             let n = if offset != 0 && n > 0 { n - 1 } else { n };
@@ -559,6 +631,52 @@ mod tests {
             assert_eq!(
                 TimeOp::find_mon(-1).apply(ymd(2020, 12, 7, tz).time()?),
                 ymd(2020, 12, 7, tz).time()?,
+            );
+
+            // AdvDay to the next day with the same day number
+            assert_eq!(
+                TimeOp::advance_day(6).apply(ymd(2020, 12, 6, tz).time()?),
+                ymd(2021, 1, 6, tz).time()?,
+            );
+
+            assert_eq!(
+                TimeOp::advance_day(6).apply(ymd(2021, 1, 5, tz).time()?),
+                ymd(2021, 1, 6, tz).time()?,
+            );
+
+            // AdvMonth to the next month with the same month number
+            assert_eq!(
+                TimeOp::advance_month(12).apply(ymd(2020, 12, 6, tz).time()?),
+                ymd(2021, 12, 6, tz).time()?,
+            );
+
+            assert_eq!(
+                TimeOp::advance_month(12).apply(ymd(2021, 11, 6, tz).time()?),
+                ymd(2021, 12, 6, tz).time()?,
+            );
+
+            // FindDay for the current day number
+            assert_eq!(
+                TimeOp::find_day(6).apply(ymd(2020, 12, 6, tz).time()?),
+                ymd(2020, 12, 6, tz).time()?,
+            );
+
+            // FindDay for the next day number
+            assert_eq!(
+                TimeOp::find_day(7).apply(ymd(2020, 12, 6, tz).time()?),
+                ymd(2020, 12, 7, tz).time()?,
+            );
+
+            // FindMonth for the current month number
+            assert_eq!(
+                TimeOp::find_month(12).apply(ymd(2020, 12, 6, tz).time()?),
+                ymd(2020, 12, 6, tz).time()?,
+            );
+
+            // FindMonth for the next month number
+            assert_eq!(
+                TimeOp::find_month(1).apply(ymd(2020, 12, 6, tz).time()?),
+                ymd(2021, 1, 6, tz).time()?,
             );
         }
         Ok(())
