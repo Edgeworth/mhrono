@@ -83,10 +83,6 @@ impl<T> SpanAny<T> {
         Self { st: Endpoint::Unbounded { left: true }, en: Endpoint::Unbounded { left: false } }
     }
 
-    pub const fn is_unb(&self) -> bool {
-        matches!((&self.st, &self.en), (Endpoint::Unbounded { .. }, Endpoint::Unbounded { .. }))
-    }
-
     #[must_use]
     pub fn to_range_full(&self) -> Option<RangeFull> {
         match (&self.st, &self.en) {
@@ -110,6 +106,15 @@ impl<T: PartialOrd> SpanAny<T> {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.st > self.en
+    }
+
+    pub fn is_unb(&self) -> bool {
+        if self.is_empty() {
+            false
+        } else {
+            // If we are not empty and both endpoints are unbounded, we must be unbounded.
+            matches!((&self.st, &self.en), (Endpoint::Unbounded { .. }, Endpoint::Unbounded { .. }))
+        }
     }
 
     #[must_use]
