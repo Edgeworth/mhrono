@@ -6,25 +6,25 @@ use crate::series_ops;
 use crate::span::any::SpanAny;
 use crate::time::Time;
 
-pub type F64Series = TimeSeries<f64>;
+pub type TimeSeries<Y> = ScalarSeries<Time, Y>;
 
-// TimeSeries is generic and allowed to contain duplicate values.
+// ScalarSeries is generic and allowed to contain duplicate values.
 #[must_use]
 #[derive(Debug, Eq, Default, PartialEq, PartialOrd, Hash, Clone)]
-pub struct TimeSeries<Y: Clone> {
-    inner: SeriesInner<(Time, Y)>,
+pub struct ScalarSeries<X: PartialOrd + Copy + std::fmt::Display, Y: Clone> {
+    inner: SeriesInner<(X, Y)>,
 }
 
-impl<Y: Clone> TimeSeries<Y> {
+impl<X: PartialOrd + Copy + std::fmt::Display, Y: Clone> ScalarSeries<X, Y> {
     pub fn new() -> Self {
         Self { inner: SeriesInner::empty() }
     }
 }
 
-impl<Y: Clone> Series for TimeSeries<Y> {
-    type X = Time;
+impl<X: PartialOrd + Copy + std::fmt::Display, Y: Clone> Series for ScalarSeries<X, Y> {
+    type X = X;
     type Y = Y;
-    type V = (Time, Y);
+    type V = (X, Y);
 
     fn inner(&self) -> &SeriesInner<Self::V> {
         &self.inner
@@ -63,4 +63,4 @@ impl<Y: Clone> Series for TimeSeries<Y> {
     }
 }
 
-series_ops!(TimeSeries<Y>; Y: Clone);
+series_ops!(ScalarSeries<X, Y>; X: PartialOrd + Copy + std::fmt::Display, Y: Clone);
