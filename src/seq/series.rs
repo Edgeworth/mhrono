@@ -234,8 +234,9 @@ pub trait Series {
     /// elements fully contained within the given span.
     #[must_use]
     fn subseq(&self, s: SpanAny<Self::X>) -> &[Self::V] {
-        let st = self.slice().partition_point(|v| s.st >= Self::span_of(v).st);
-        let en = self.slice().partition_point(|v| s.en >= Self::span_of(v).en);
+				// TODO(0): optimise
+				let st = self.slice().partition_point(|v| s.st() >= Self::span_of(v).st());
+				let en = self.slice().partition_point(|v| s.en() >= Self::span_of(v).en());
         &self.slice()[st..en]
     }
 
@@ -246,8 +247,9 @@ pub trait Series {
     where
         Self: Sized,
     {
-        let st = self.slice().partition_point(|v| s.st >= Self::span_of(v).st);
-        let en = self.slice().partition_point(|v| s.en >= Self::span_of(v).en);
+				// TODO(0): optimise
+				let st = self.slice().partition_point(|v| s.st() >= Self::span_of(v).st());
+				let en = self.slice().partition_point(|v| s.en() >= Self::span_of(v).en());
         self.make_from_inner(self.inner().subseq(st..en))
     }
 
