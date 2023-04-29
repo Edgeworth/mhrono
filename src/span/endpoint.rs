@@ -49,6 +49,32 @@ impl<T> Endpoint<T> {
             Endpoint::Unbounded { .. } => None,
         }
     }
+
+    pub const fn is_left(&self) -> bool {
+        match self {
+            Endpoint::Open { left, .. }
+            | Endpoint::Closed { left, .. }
+            | Endpoint::Unbounded { left } => *left,
+        }
+    }
+
+    pub const fn is_right(&self) -> bool {
+        !self.is_left()
+    }
+
+    pub const fn is_left_unbounded(&self) -> bool {
+        match self {
+            Endpoint::Unbounded { left } => *left,
+            _ => false,
+        }
+    }
+
+    pub const fn is_right_unbounded(&self) -> bool {
+        match self {
+            Endpoint::Unbounded { left } => !*left,
+            _ => false,
+        }
+    }
 }
 
 impl<T: Clone> From<Endpoint<T>> for Bound<T> {
