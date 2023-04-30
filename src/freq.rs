@@ -32,6 +32,7 @@ impl Hash for Freq {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // This will have some collisions, but it will definitely be the same
         // for the same ratios.
+        // TODO(0): optimize this.
         (self.num / self.denom).hash(state);
     }
 }
