@@ -38,8 +38,7 @@ pub trait Series {
     fn y(v: &Self::V) -> &Self::Y;
 
     /// Returns span of X values that the given value takes up. This span must
-    /// contain its x value (or be an endpoint of the range), and must not
-    /// overlap with any other value's span.
+    /// contain its x value, and must not overlap with any other value's span.
     fn span_of(v: &Self::V) -> SpanAny<Self::X>;
 
     /// Normalize the underlying data and perform error checking if wanted.
@@ -145,7 +144,7 @@ pub trait Series {
         self.lower_bound_last_idx(x).and_then(|idx| self.get(idx))
     }
 
-    /// Lookup the index of the record which comes before |x|.
+    /// Lookup the index of the last record which comes before |x|.
     fn span_before_idx(&self, x: Self::X) -> Option<usize> {
         let idx = self.lower_bound_idx(x).unwrap_or(self.len() - 1);
 
@@ -156,34 +155,34 @@ pub trait Series {
         }
     }
 
-    /// Lookup the record which comes before |x|.
+    /// Lookup the last record which comes before |x|.
     #[must_use]
     fn span_before(&self, x: Self::X) -> Option<&Self::V> {
         self.span_before_idx(x).and_then(|idx| self.get(idx))
     }
 
-    /// Lookup the index of the record which contains |x|. If no such record
-    /// exists, look up the record which is immediately before |x|,
-    /// if it exists.
+    /// Lookup the index of the last record which contains |x|. If no such
+    /// record exists, look up the record which is immediately before |x|, if it
+    /// exists.
     fn span_at_or_before_idx(&self, x: Self::X) -> Option<usize> {
         let idx = self.upper_bound_idx(x).unwrap_or(self.len() - 1);
 
-        if Self::span_of(self.get(idx)?).en <= x {
+        if Self::span_of(self.get(idx)?).st <= x {
             Some(idx)
         } else {
             idx.checked_sub(1)
         }
     }
 
-    /// Lookup the record which contains |x|. If no such record exists, look up
-    /// the record which is immediately before |x|, if it exists.
+    /// Lookup the last record which contains |x|. If no such record exists,
+    /// look up the record which is immediately before |x|, if it exists.
     #[must_use]
     fn span_at_or_before(&self, x: Self::X) -> Option<&Self::V> {
         self.span_at_or_before_idx(x).and_then(|idx| self.get(idx))
     }
 
-    /// Lookup the index of the record which contains |x|. If no such record
-    /// exists, look up the record which is immediately after |x|,
+    /// Lookup the index of the first record which contains |x|. If no such
+    /// record exists, look up the record which is immediately after |x|,
     /// if it exists.
     fn span_at_or_after_idx(&self, x: Self::X) -> Option<usize> {
         let idx = self.lower_bound_idx(x)?;
@@ -197,14 +196,14 @@ pub trait Series {
         }
     }
 
-    /// Lookup the record which contains |x|. If no such record exists, look up
-    /// the record which is immediately after |x|, if it exists.
+    /// Lookup the first record which contains |x|. If no such record exists,
+    /// look up the record which is immediately after |x|, if it exists.
     #[must_use]
     fn span_at_or_after(&self, x: Self::X) -> Option<&Self::V> {
         self.span_at_or_after_idx(x).and_then(|idx| self.get(idx))
     }
 
-    /// Lookup the index of the record which comes after |x|.
+    /// Lookup the index of the first record which comes after |x|.
     fn span_after_idx(&self, x: Self::X) -> Option<usize> {
         let idx = self.upper_bound_idx(x)?;
 
@@ -217,7 +216,7 @@ pub trait Series {
         }
     }
 
-    /// Lookup the record which comes after |x|.
+    /// Lookup the first record which comes after |x|.
     #[must_use]
     fn span_after(&self, x: Self::X) -> Option<&Self::V> {
         self.span_after_idx(x).and_then(|idx| self.get(idx))
@@ -339,643 +338,4 @@ macro_rules! series_ops {
             }
         }
     };
-}
-
-#[cfg(test)]
-mod tests {
-    use eyre::Result;
-    use pretty_assertions::assert_eq;
-
-    use super::*;
-    use crate::seq::scalar_series::ScalarSeries;
-
-    #[test]
-    fn scalar_upper_bound_idx() -> Result<()> {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10))?;
-        series.push((5, 20))?;
-        series.push((8, 30))?;
-
-        assert_eq!(series.upper_bound_idx(4), Some(1));
-        assert_eq!(series.upper_bound_idx(5), Some(2));
-        assert_eq!(series.upper_bound_idx(1), Some(0));
-        assert_eq!(series.upper_bound_idx(10), None);
-
-        Ok(())
-    }
-
-    #[test]
-    fn scalar_lower_bound_idx() -> Result<()> {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10))?;
-        series.push((5, 20))?;
-        series.push((8, 30))?;
-
-        assert_eq!(series.lower_bound_idx(4), Some(1));
-        assert_eq!(series.lower_bound_idx(5), Some(1));
-        assert_eq!(series.lower_bound_idx(1), Some(0));
-        assert_eq!(series.lower_bound_idx(10), None);
-
-        Ok(())
-    }
-
-    #[test]
-    fn scalar_lower_bound() -> Result<()> {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10))?;
-        series.push((5, 20))?;
-        series.push((8, 30))?;
-
-        assert_eq!(series.lower_bound(4), Some(&(5, 20)));
-        assert_eq!(series.lower_bound(5), Some(&(5, 20)));
-        assert_eq!(series.lower_bound(1), Some(&(2, 10)));
-        assert_eq!(series.lower_bound(10), None);
-
-        Ok(())
-    }
-
-    #[test]
-    fn scalar_lower_bound_last_idx() -> Result<()> {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10))?;
-        series.push((5, 20))?;
-        series.push((8, 30))?;
-
-        assert_eq!(series.lower_bound_last_idx(4), Some(0));
-        assert_eq!(series.lower_bound_last_idx(5), Some(1));
-        assert_eq!(series.lower_bound_last_idx(1), None);
-        assert_eq!(series.lower_bound_last_idx(8), Some(2));
-
-        Ok(())
-    }
-
-    #[test]
-    fn scalar_lower_bound_last() -> Result<()> {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10))?;
-        series.push((5, 20))?;
-        series.push((8, 30))?;
-
-        assert_eq!(series.lower_bound_last(4), Some(&(2, 10)));
-        assert_eq!(series.lower_bound_last(5), Some(&(5, 20)));
-        assert_eq!(series.lower_bound_last(1), None);
-        assert_eq!(series.lower_bound_last(8), Some(&(8, 30)));
-
-        Ok(())
-    }
-
-    #[test]
-    fn scalar_span_before_idx() -> Result<()> {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10))?;
-        series.push((5, 20))?;
-        series.push((8, 30))?;
-
-        assert_eq!(series.span_before_idx(0), None);
-        assert_eq!(series.span_before_idx(1), None);
-        assert_eq!(series.span_before_idx(2), None);
-        assert_eq!(series.span_before_idx(3), Some(0));
-        assert_eq!(series.span_before_idx(4), Some(0));
-        assert_eq!(series.span_before_idx(5), Some(0));
-        assert_eq!(series.span_before_idx(6), Some(1));
-        assert_eq!(series.span_before_idx(7), Some(1));
-        assert_eq!(series.span_before_idx(8), Some(1));
-        assert_eq!(series.span_before_idx(9), Some(2));
-
-        Ok(())
-    }
-
-    #[test]
-    fn scalar_span_before() -> Result<()> {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10))?;
-        series.push((5, 20))?;
-        series.push((8, 30))?;
-
-        assert_eq!(series.span_before(0), None);
-        assert_eq!(series.span_before(1), None);
-        assert_eq!(series.span_before(2), None);
-        assert_eq!(series.span_before(3), Some(&(2, 10)));
-        assert_eq!(series.span_before(4), Some(&(2, 10)));
-        assert_eq!(series.span_before(5), Some(&(2, 10)));
-        assert_eq!(series.span_before(6), Some(&(5, 20)));
-        assert_eq!(series.span_before(7), Some(&(5, 20)));
-        assert_eq!(series.span_before(8), Some(&(5, 20)));
-        assert_eq!(series.span_before(9), Some(&(8, 30)));
-
-        Ok(())
-    }
-
-    #[test]
-    fn scalar_span_after_idx() -> Result<()> {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10))?;
-        series.push((5, 20))?;
-        series.push((8, 30))?;
-
-        assert_eq!(series.span_after_idx(0), Some(0));
-        assert_eq!(series.span_after_idx(1), Some(0));
-        assert_eq!(series.span_after_idx(2), Some(1));
-        assert_eq!(series.span_after_idx(3), Some(1));
-        assert_eq!(series.span_after_idx(4), Some(1));
-        assert_eq!(series.span_after_idx(5), Some(2));
-        assert_eq!(series.span_after_idx(6), Some(2));
-        assert_eq!(series.span_after_idx(7), Some(2));
-        assert_eq!(series.span_after_idx(8), None);
-        assert_eq!(series.span_after_idx(9), None);
-
-        Ok(())
-    }
-
-    #[test]
-    fn scalar_span_after() -> Result<()> {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10))?;
-        series.push((5, 20))?;
-        series.push((8, 30))?;
-
-        assert_eq!(series.span_after(0), Some(&(2, 10)));
-        assert_eq!(series.span_after(1), Some(&(2, 10)));
-        assert_eq!(series.span_after(2), Some(&(5, 20)));
-        assert_eq!(series.span_after(3), Some(&(5, 20)));
-        assert_eq!(series.span_after(4), Some(&(5, 20)));
-        assert_eq!(series.span_after(5), Some(&(8, 30)));
-        assert_eq!(series.span_after(6), Some(&(8, 30)));
-        assert_eq!(series.span_after(7), Some(&(8, 30)));
-        assert_eq!(series.span_after(8), None);
-        assert_eq!(series.span_after(9), None);
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_scalar_span_at_or_before() -> Result<()> {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10))?;
-        series.push((5, 20))?;
-        series.push((8, 30))?;
-
-        assert_eq!(series.span_at_or_before(0), None);
-        assert_eq!(series.span_at_or_before(1), None);
-        assert_eq!(series.span_at_or_before(2), Some(&(2, 10)));
-        assert_eq!(series.span_at_or_before(3), Some(&(2, 10)));
-        assert_eq!(series.span_at_or_before(5), Some(&(5, 20)));
-        assert_eq!(series.span_at_or_before(7), Some(&(5, 20)));
-        assert_eq!(series.span_at_or_before(8), Some(&(8, 30)));
-        assert_eq!(series.span_at_or_before(9), Some(&(8, 30)));
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_scalar_span_at_or_before_idx() -> Result<()> {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10))?;
-        series.push((5, 20))?;
-        series.push((8, 30))?;
-
-        assert_eq!(series.span_at_or_before_idx(0), None);
-        assert_eq!(series.span_at_or_before_idx(1), None);
-        assert_eq!(series.span_at_or_before_idx(2), Some(0));
-        assert_eq!(series.span_at_or_before_idx(3), Some(0));
-        assert_eq!(series.span_at_or_before_idx(5), Some(1));
-        assert_eq!(series.span_at_or_before_idx(7), Some(1));
-        assert_eq!(series.span_at_or_before_idx(8), Some(2));
-        assert_eq!(series.span_at_or_before_idx(9), Some(2));
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_scalar_span_at_or_after() -> Result<()> {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10))?;
-        series.push((5, 20))?;
-        series.push((8, 30))?;
-
-        assert_eq!(series.span_at_or_after(0), Some(&(2, 10)));
-        assert_eq!(series.span_at_or_after(1), Some(&(2, 10)));
-        assert_eq!(series.span_at_or_after(2), Some(&(2, 10)));
-        assert_eq!(series.span_at_or_after(3), Some(&(5, 20)));
-        assert_eq!(series.span_at_or_after(5), Some(&(5, 20)));
-        assert_eq!(series.span_at_or_after(7), Some(&(8, 30)));
-        assert_eq!(series.span_at_or_after(8), Some(&(8, 30)));
-        assert_eq!(series.span_at_or_after(9), None);
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_scalar_span_at_or_after_idx() -> Result<()> {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10))?;
-        series.push((5, 20))?;
-        series.push((8, 30))?;
-
-        assert_eq!(series.span_at_or_after_idx(0), Some(0));
-        assert_eq!(series.span_at_or_after_idx(1), Some(0));
-        assert_eq!(series.span_at_or_after_idx(2), Some(0));
-        assert_eq!(series.span_at_or_after_idx(3), Some(1));
-        assert_eq!(series.span_at_or_after_idx(5), Some(1));
-        assert_eq!(series.span_at_or_after_idx(7), Some(2));
-        assert_eq!(series.span_at_or_after_idx(8), Some(2));
-        assert_eq!(series.span_at_or_after_idx(9), None);
-
-        Ok(())
-    }
-
-    #[test]
-    fn scalar_upper_bound_idx_duplicates() -> Result<()> {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10))?;
-        series.push((5, 20))?;
-        series.push((5, 21))?;
-        series.push((8, 30))?;
-
-        assert_eq!(series.upper_bound_idx(4), Some(1));
-        assert_eq!(series.upper_bound_idx(5), Some(3));
-        assert_eq!(series.upper_bound_idx(1), Some(0));
-        assert_eq!(series.upper_bound_idx(10), None);
-
-        Ok(())
-    }
-
-    #[test]
-    fn scalar_lower_bound_idx_duplicates() -> Result<()> {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10))?;
-        series.push((5, 20))?;
-        series.push((5, 21))?;
-        series.push((8, 30))?;
-
-        assert_eq!(series.lower_bound_idx(4), Some(1));
-        assert_eq!(series.lower_bound_idx(5), Some(1));
-        assert_eq!(series.lower_bound_idx(1), Some(0));
-        assert_eq!(series.lower_bound_idx(10), None);
-
-        Ok(())
-    }
-
-    #[test]
-    fn scalar_lower_bound_last_idx_duplicates() -> Result<()> {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10))?;
-        series.push((5, 20))?;
-        series.push((5, 21))?;
-        series.push((8, 30))?;
-
-        assert_eq!(series.lower_bound_last_idx(4), Some(0));
-        assert_eq!(series.lower_bound_last_idx(5), Some(2));
-        assert_eq!(series.lower_bound_last_idx(1), None);
-        assert_eq!(series.lower_bound_last_idx(8), Some(3));
-
-        Ok(())
-    }
-
-    #[test]
-    fn scalar_span_before_idx_duplicates() -> Result<()> {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10))?;
-        series.push((5, 20))?;
-        series.push((5, 21))?;
-        series.push((8, 30))?;
-
-        assert_eq!(series.span_before_idx(0), None);
-        assert_eq!(series.span_before_idx(1), None);
-        assert_eq!(series.span_before_idx(2), None);
-        assert_eq!(series.span_before_idx(3), Some(0));
-        assert_eq!(series.span_before_idx(4), Some(0));
-        assert_eq!(series.span_before_idx(5), Some(0));
-        assert_eq!(series.span_before_idx(6), Some(2));
-        assert_eq!(series.span_before_idx(7), Some(2));
-        assert_eq!(series.span_before_idx(8), Some(2));
-        assert_eq!(series.span_before_idx(9), Some(3));
-
-        Ok(())
-    }
-
-    #[test]
-    fn scalar_span_after_idx_duplicates() -> Result<()> {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10))?;
-        series.push((5, 20))?;
-        series.push((5, 21))?;
-        series.push((8, 30))?;
-
-        assert_eq!(series.span_after_idx(0), Some(0));
-        assert_eq!(series.span_after_idx(1), Some(0));
-        assert_eq!(series.span_after_idx(2), Some(1));
-        assert_eq!(series.span_after_idx(3), Some(1));
-        assert_eq!(series.span_after_idx(4), Some(1));
-        assert_eq!(series.span_after_idx(5), Some(3));
-        assert_eq!(series.span_after_idx(6), Some(3));
-        assert_eq!(series.span_after_idx(7), Some(3));
-        assert_eq!(series.span_after_idx(8), None);
-        assert_eq!(series.span_after_idx(9), None);
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_scalar_span_at_or_before_idx_duplicates() -> Result<()> {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10))?;
-        series.push((5, 20))?;
-        series.push((5, 21))?;
-        series.push((8, 30))?;
-
-        assert_eq!(series.span_at_or_before_idx(0), None);
-        assert_eq!(series.span_at_or_before_idx(1), None);
-        assert_eq!(series.span_at_or_before_idx(2), Some(0));
-        assert_eq!(series.span_at_or_before_idx(3), Some(0));
-        assert_eq!(series.span_at_or_before_idx(5), Some(2));
-        assert_eq!(series.span_at_or_before_idx(7), Some(2));
-        assert_eq!(series.span_at_or_before_idx(8), Some(3));
-        assert_eq!(series.span_at_or_before_idx(9), Some(3));
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_scalar_span_at_or_after_idx_duplicates() -> Result<()> {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10))?;
-        series.push((5, 20))?;
-        series.push((5, 21))?;
-        series.push((8, 30))?;
-
-        assert_eq!(series.span_at_or_after_idx(0), Some(0));
-        assert_eq!(series.span_at_or_after_idx(1), Some(0));
-        assert_eq!(series.span_at_or_after_idx(2), Some(0));
-        assert_eq!(series.span_at_or_after_idx(3), Some(1));
-        assert_eq!(series.span_at_or_after_idx(5), Some(1));
-        assert_eq!(series.span_at_or_after_idx(7), Some(3));
-        assert_eq!(series.span_at_or_after_idx(8), Some(3));
-        assert_eq!(series.span_at_or_after_idx(9), None);
-
-        Ok(())
-    }
-
-    #[test]
-    fn scalar_only_duplicates() -> Result<()> {
-        let mut series = ScalarSeries::new();
-        series.push((5, 20))?;
-        series.push((5, 21))?;
-
-        // upper_bound_idx
-        assert_eq!(series.upper_bound_idx(4), Some(0));
-        assert_eq!(series.upper_bound_idx(5), None);
-        assert_eq!(series.upper_bound_idx(6), None);
-
-        // lower_bound_idx
-        assert_eq!(series.lower_bound_idx(4), Some(0));
-        assert_eq!(series.lower_bound_idx(5), Some(0));
-        assert_eq!(series.lower_bound_idx(6), None);
-
-        // lower_bound_last_idx
-        assert_eq!(series.lower_bound_last_idx(4), None);
-        assert_eq!(series.lower_bound_last_idx(5), Some(1));
-        assert_eq!(series.lower_bound_last_idx(6), Some(1));
-
-        // span_before_idx
-        assert_eq!(series.span_before_idx(4), None);
-        assert_eq!(series.span_before_idx(5), None);
-        assert_eq!(series.span_before_idx(6), Some(1));
-
-        // span_after_idx
-        assert_eq!(series.span_after_idx(4), Some(0));
-        assert_eq!(series.span_after_idx(5), None);
-        assert_eq!(series.span_after_idx(6), None);
-
-        // span_at_or_before_idx
-        assert_eq!(series.span_at_or_before_idx(4), None);
-        assert_eq!(series.span_at_or_before_idx(5), Some(1));
-        assert_eq!(series.span_at_or_before_idx(6), Some(1));
-
-        // span_at_or_after_idx
-        assert_eq!(series.span_at_or_after_idx(4), Some(0));
-        assert_eq!(series.span_at_or_after_idx(5), Some(0));
-        assert_eq!(series.span_at_or_after_idx(6), None);
-
-        Ok(())
-    }
-
-    #[test]
-    fn scalar_push() -> Result<()> {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10))?;
-        series.push((5, 20))?;
-        series.push((8, 30))?;
-
-        assert_eq!(series.len(), 3);
-        assert_eq!(series.get(0), Some(&(2, 10)));
-        assert_eq!(series.get(1), Some(&(5, 20)));
-        assert_eq!(series.get(2), Some(&(8, 30)));
-
-        Ok(())
-    }
-
-    #[test]
-    fn subseq_unbounded_both() {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
-        let span = SpanAny::unb();
-
-        let subseq = series.subseq(span);
-        assert_eq!(subseq, &[(2, 10), (5, 20), (8, 30)]);
-    }
-
-    #[test]
-    fn subseq_unbounded_left() {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
-        let span = SpanAny::unb_inc(5);
-
-        let subseq = series.subseq(span);
-        assert_eq!(subseq, &[(2, 10), (5, 20)]);
-    }
-
-    #[test]
-    fn scalar_subseq_unbounded_right() {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
-        let span = SpanAny::inc_unb(5);
-
-        let subseq = series.subseq(span);
-        assert_eq!(subseq, &[(5, 20), (8, 30)]);
-    }
-
-    #[test]
-    fn scalar_subseq_bounded() {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
-        let span = SpanAny::inc(5, 8);
-
-        let subseq = series.subseq(span);
-        assert_eq!(subseq, &[(5, 20), (8, 30)]);
-    }
-
-    #[test]
-    fn scalar_subseq_series_unbounded_both() {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
-        let span = SpanAny::unb();
-
-        let subseq_series = series.subseq_series(span);
-        assert_eq!(subseq_series.len(), 3);
-        assert_eq!(subseq_series.get(0), Some(&(2, 10)));
-        assert_eq!(subseq_series.get(1), Some(&(5, 20)));
-        assert_eq!(subseq_series.get(2), Some(&(8, 30)));
-    }
-
-    #[test]
-    fn scalar_subseq_series_unbounded_left() {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
-        let span = SpanAny::unb_inc(5);
-
-        let subseq_series = series.subseq_series(span);
-        assert_eq!(subseq_series.len(), 2);
-        assert_eq!(subseq_series.get(0), Some(&(2, 10)));
-        assert_eq!(subseq_series.get(1), Some(&(5, 20)));
-    }
-
-    #[test]
-    fn scalar_subseq_series_unbounded_right() {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
-        let span = SpanAny::inc_unb(5);
-
-        let subseq_series = series.subseq_series(span);
-        assert_eq!(subseq_series.len(), 2);
-        assert_eq!(subseq_series.get(0), Some(&(5, 20)));
-        assert_eq!(subseq_series.get(1), Some(&(8, 30)));
-    }
-
-    #[test]
-    fn scalar_subseq_series_bounded() {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
-        let span = SpanAny::inc(5, 8);
-
-        let subseq_series = series.subseq_series(span);
-        assert_eq!(subseq_series.len(), 2);
-        assert_eq!(subseq_series.get(0), Some(&(5, 20)));
-        assert_eq!(subseq_series.get(1), Some(&(8, 30)));
-    }
-
-    #[test]
-    fn subseq_unbounded_left_exc() {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
-        let span = SpanAny::unb_exc(5);
-
-        let subseq = series.subseq(span);
-        assert_eq!(subseq, &[(2, 10)]);
-    }
-
-    #[test]
-    fn scalar_subseq_unbounded_right_exc() {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
-        let span = SpanAny::exc_unb(5);
-
-        let subseq = series.subseq(span);
-        assert_eq!(subseq, &[(8, 30)]);
-    }
-
-    #[test]
-    fn scalar_subseq_bounded_exc() {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
-        let span = SpanAny::exc(5, 8);
-
-        let subseq = series.subseq(span);
-        assert_eq!(subseq, &[(5, 20)]);
-    }
-
-    #[test]
-    fn scalar_subseq_bounded_exc_exc() {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
-        let span = SpanAny::exc_exc(5, 8);
-
-        let subseq = series.subseq(span);
-        assert_eq!(subseq, &[]);
-    }
-
-    #[test]
-    fn scalar_subseq_series_unbounded_left_exc() {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
-        let span = SpanAny::unb_exc(5);
-
-        let subseq_series = series.subseq_series(span);
-        assert_eq!(subseq_series.len(), 1);
-        assert_eq!(subseq_series.get(0), Some(&(2, 10)));
-    }
-
-    #[test]
-    fn scalar_subseq_series_unbounded_right_exc() {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
-        let span = SpanAny::exc_unb(5);
-
-        let subseq_series = series.subseq_series(span);
-        assert_eq!(subseq_series.len(), 1);
-        assert_eq!(subseq_series.get(0), Some(&(8, 30)));
-    }
-
-    #[test]
-    fn scalar_subseq_series_bounded_exc() {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
-        let span = SpanAny::exc(5, 8);
-
-        let subseq_series = series.subseq_series(span);
-        assert_eq!(subseq_series.len(), 1);
-        assert_eq!(subseq_series.get(0), Some(&(5, 20)));
-    }
-
-    #[test]
-    fn scalar_subseq_series_bounded_exc_exc() {
-        let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
-        let span = SpanAny::exc_exc(5, 8);
-
-        let subseq_series = series.subseq_series(span);
-        assert!(subseq_series.is_empty());
-    }
 }

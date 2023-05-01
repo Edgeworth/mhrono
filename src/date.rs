@@ -191,14 +191,14 @@ impl Date {
 }
 
 impl EndpointConversion for Date {
-    fn to_open(p: &Self, left: bool) -> Option<Self> {
-        let d = if left { p.d.pred_opt() } else { p.d.succ_opt() };
-        d.map(|d| Self::new(d, p.tz()))
+    fn to_open(&self, left: bool) -> Option<Self> {
+        let d = if left { self.d.pred_opt() } else { self.d.succ_opt() };
+        d.map(|d| Self::new(d, self.tz()))
     }
 
-    fn to_closed(p: &Self, left: bool) -> Option<Self> {
-        let d = if left { p.d.succ_opt() } else { p.d.pred_opt() };
-        d.map(|d| Self::new(d, p.tz()))
+    fn to_closed(&self, left: bool) -> Option<Self> {
+        let d = if left { self.d.succ_opt() } else { self.d.pred_opt() };
+        d.map(|d| Self::new(d, self.tz()))
     }
 }
 

@@ -32,7 +32,6 @@ impl Hash for Freq {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // This will have some collisions, but it will definitely be the same
         // for the same ratios.
-        // TODO(0): optimize this.
         (self.num / self.denom).hash(state);
     }
 }
@@ -41,8 +40,7 @@ impl Ord for Freq {
     fn cmp(&self, o: &Self) -> Ordering {
         let a = self.num * o.denom;
         let b = o.num * self.denom;
-        // Reverse since a smaller period corresponds to a higher frequency.
-        b.cmp(&a)
+        a.cmp(&b)
     }
 }
 
@@ -115,6 +113,11 @@ impl_op_ex!(/ |a: &Cycles, b: &Freq| -> Duration { Duration::new(a.count() * b.d
 // dur * freq = cycles
 impl_op_ex_commutative!(*|a: &Freq, b: &Duration| -> Cycles {
     Cycles::new(b.secs() * a.num / a.denom)
+});
+
+// freq * cycles = dur
+impl_op_ex_commutative!(*|a: &Freq, b: &Cycles| -> Duration {
+    Duration::new(b.count() * a.denom / a.num)
 });
 
 macro_rules! freq_ops {
@@ -208,5 +211,84 @@ mod tests {
         let de: Freq = serde_json::from_str(&se)?;
         assert_eq!(de, freq);
         Ok(())
+    }
+
+    #[test]
+    fn test_freq_from_hz() {
+        let freq = Freq::from_hz(dec!(60));
+        assert_eq!(freq.num, dec!(60));
+        assert_eq!(freq.denom, dec!(1));
+    }
+
+    #[test]
+    fn test_freq_new() {
+        let cyc = Cycles::new(dec!(5));
+        let dur = Duration::new(dec!(2));
+        let freq = Freq::new(cyc, dur);
+        assert_eq!(freq.num, dec!(5));
+        assert_eq!(freq.denom, dec!(2));
+    }
+
+    #[test]
+    fn test_freq_cycle_duration() {
+        let cyc = Cycles::new(dec!(5));
+        let dur = Duration::new(dec!(2));
+        let freq = Freq::new(cyc, dur);
+        assert_eq!(freq.cycle_duration(), Duration::new(dec!(2) / dec!(5)));
+    }
+
+    #[test]
+    fn test_freq_hz() {
+        let cyc = Cycles::new(dec!(5));
+        let dur = Duration::new(dec!(2));
+        let freq = Freq::new(cyc, dur);
+        assert_eq!(freq.hz(), dec!(5) / dec!(2));
+    }
+
+    #[test]
+    fn test_freq_eq() {
+        let freq1 = Freq::from_hz(dec!(60));
+        let freq2 = Freq::new(Cycles::new(dec!(120)), Duration::new(dec!(2)));
+        assert_eq!(freq1, freq2);
+    }
+
+    #[test]
+    fn test_freq_ord() {
+        let freq1 = Freq::from_hz(dec!(60));
+        let freq2 = Freq::from_hz(dec!(120));
+        assert!(freq1 < freq2);
+        assert!(HOURLY > DAILY);
+    }
+
+    #[test]
+    fn test_freq_multiplication_with_cycles() {
+        let freq = Freq::from_hz(dec!(60));
+        let cycles = Cycles::new(dec!(2));
+        let result = freq * cycles;
+        assert_eq!(result, Duration::new(dec!(1) / dec!(30)));
+    }
+
+    #[test]
+    fn test_freq_multiplication_with_duration() {
+        let freq = Freq::from_hz(dec!(60));
+        let duration = Duration::new(dec!(2));
+        let result = freq * duration;
+        assert_eq!(result, Cycles::new(dec!(120)));
+    }
+
+    #[test]
+    fn test_freq_division_with_cycles() {
+        let cycles = Cycles::new(dec!(120));
+        let freq = Freq::from_hz(dec!(60));
+        let result = cycles / freq;
+        assert_eq!(result, Duration::new(dec!(2)));
+    }
+
+    #[test]
+    fn test_freq_division_with_duration() {
+        let freq1 = Freq::from_hz(dec!(120));
+        let freq2 = Freq::from_hz(dec!(60));
+        let result = freq1 / freq2;
+        assert_eq!(result, dec!(2));
     }
 }
