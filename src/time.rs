@@ -387,15 +387,15 @@ impl ToPrimitive for Time {
 }
 
 impl EndpointConversion for Time {
-    fn to_open(p: &Self, left: bool) -> Option<Self> {
+    fn to_open(&self, left: bool) -> Option<Self> {
         let ulp = chrono::Duration::nanoseconds(1);
-        let d = if left { p.t.checked_sub_signed(ulp) } else { p.t.checked_add_signed(ulp) };
+        let d = if left { self.t.checked_sub_signed(ulp) } else { self.t.checked_add_signed(ulp) };
         d.map(Self::new)
     }
 
-    fn to_closed(p: &Self, left: bool) -> Option<Self> {
+    fn to_closed(&self, left: bool) -> Option<Self> {
         let ulp = chrono::Duration::nanoseconds(1);
-        let d = if left { p.t.checked_add_signed(ulp) } else { p.t.checked_sub_signed(ulp) };
+        let d = if left { self.t.checked_add_signed(ulp) } else { self.t.checked_sub_signed(ulp) };
         d.map(Self::new)
     }
 }

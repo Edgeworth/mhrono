@@ -80,11 +80,11 @@ impl ToPrimitive for Cycles {
 }
 
 impl EndpointConversion for Cycles {
-    fn to_open(p: &Self, left: bool) -> Option<Self> {
-        <Decimal as EndpointConversion>::to_open(&p.count, left).map(Self::new)
+    fn to_open(&self, left: bool) -> Option<Self> {
+        self.count.to_open(left).map(Self::new)
     }
 
-    fn to_closed(p: &Self, left: bool) -> Option<Self> {
-        <Decimal as EndpointConversion>::to_closed(&p.count, left).map(Self::new)
+    fn to_closed(&self, left: bool) -> Option<Self> {
+        self.count.to_closed(left).map(Self::new)
     }
 }

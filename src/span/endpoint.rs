@@ -249,10 +249,10 @@ impl<U, T: SubAssign<U>> SubAssign<U> for Endpoint<T> {
 }
 
 pub trait EndpointConversion {
-    fn to_open(p: &Self, left: bool) -> Option<Self>
+    fn to_open(&self, left: bool) -> Option<Self>
     where
         Self: Sized;
-    fn to_closed(p: &Self, left: bool) -> Option<Self>
+    fn to_closed(&self, left: bool) -> Option<Self>
     where
         Self: Sized;
 }
@@ -260,19 +260,19 @@ pub trait EndpointConversion {
 macro_rules! endpoint_int_ops {
     ($($t:ty),*) => ($(
         impl EndpointConversion for $t {
-            fn to_open(p: &Self, left: bool) -> Option<Self> {
+            fn to_open(&self, left: bool) -> Option<Self> {
                 if left {
-                    p.checked_sub(1)
+                    self.checked_sub(1)
                 } else {
-                    p.checked_add(1)
+                    self.checked_add(1)
                 }
             }
 
-            fn to_closed(p: &Self, left: bool) -> Option<Self> {
+            fn to_closed(&self, left: bool) -> Option<Self> {
                 if left {
-                    p.checked_add(1)
+                    self.checked_add(1)
                 } else {
-                    p.checked_sub(1)
+                    self.checked_sub(1)
                 }
             }
         }
@@ -284,19 +284,19 @@ endpoint_int_ops!(i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize
 const ULP: Decimal = Decimal::from_parts(1, 0, 0, false, 0);
 
 impl EndpointConversion for Decimal {
-    fn to_open(p: &Self, left: bool) -> Option<Self> {
+    fn to_open(&self, left: bool) -> Option<Self> {
         if left {
-            p.checked_sub(ULP)
+            self.checked_sub(ULP)
         } else {
-            p.checked_add(ULP)
+            self.checked_add(ULP)
         }
     }
 
-    fn to_closed(p: &Self, left: bool) -> Option<Self> {
+    fn to_closed(&self, left: bool) -> Option<Self> {
         if left {
-            p.checked_add(ULP)
+            self.checked_add(ULP)
         } else {
-            p.checked_sub(ULP)
+            self.checked_sub(ULP)
         }
     }
 }

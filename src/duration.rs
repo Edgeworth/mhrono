@@ -241,12 +241,12 @@ impl FromStr for Duration {
 }
 
 impl EndpointConversion for Duration {
-    fn to_open(p: &Self, left: bool) -> Option<Self> {
-        <Decimal as EndpointConversion>::to_open(&p.secs, left).map(Self::new)
+    fn to_open(&self, left: bool) -> Option<Self> {
+        self.secs.to_open(left).map(Self::new)
     }
 
-    fn to_closed(p: &Self, left: bool) -> Option<Self> {
-        <Decimal as EndpointConversion>::to_closed(&p.secs, left).map(Self::new)
+    fn to_closed(&self, left: bool) -> Option<Self> {
+        self.secs.to_closed(left).map(Self::new)
     }
 }
 
