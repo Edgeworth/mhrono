@@ -45,7 +45,7 @@ pub mod duration;
 pub mod fixed_freq;
 pub mod iter;
 pub mod op;
+pub mod semantic_freq;
 pub mod seq;
 pub mod span;
 pub mod time;
-pub mod semantic_freq;

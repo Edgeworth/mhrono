@@ -1,11 +1,12 @@
 use derive_more::Display;
+use serde::{Deserialize, Serialize};
 
 use crate::date::Date;
 use crate::op::{DateOp, TimeOp};
 use crate::time::Time;
 
 #[must_use]
-#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Display)]
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Display, Serialize, Deserialize)]
 #[display(fmt = "[{t}, {en:?})")]
 pub struct TimeIter {
     t: Time,
@@ -35,7 +36,7 @@ impl Iterator for TimeIter {
 
 // Date iterator that is exclusive (doesn't include the endpoint).
 #[must_use]
-#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Display)]
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Display, Serialize, Deserialize)]
 #[display(fmt = "[{d}, {en:?})")]
 pub struct DateIter {
     d: Date,

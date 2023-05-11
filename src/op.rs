@@ -1,12 +1,15 @@
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
+use serde::{Deserialize, Serialize};
 
 use crate::date::Date;
 use crate::span::exc::SpanExc;
 use crate::time::Time;
 
 #[must_use]
-#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Ord, PartialOrd, FromPrimitive)]
+#[derive(
+    Debug, Eq, PartialEq, Hash, Copy, Clone, Ord, PartialOrd, FromPrimitive, Serialize, Deserialize,
+)]
 pub enum TOp {
     // Adv |n| > 0 will always move to the next/previous day, even if the current day is the one in question.
     AdvMon = 0,
@@ -50,7 +53,7 @@ pub enum TOp {
 }
 
 #[must_use]
-#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Ord, PartialOrd)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct TimeOp {
     op: TOp,
     n: i64,
@@ -258,7 +261,9 @@ impl TimeOp {
 }
 
 #[must_use]
-#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Ord, PartialOrd, FromPrimitive)]
+#[derive(
+    Debug, Eq, PartialEq, Hash, Copy, Clone, Ord, PartialOrd, FromPrimitive, Serialize, Deserialize,
+)]
 pub enum DOp {
     // Adv |n| > 0 will always move to the next/previous day, even if the current day is the one in question.
     AdvMon = 0,
@@ -290,7 +295,7 @@ pub enum DOp {
 }
 
 #[must_use]
-#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Ord, PartialOrd)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct DateOp {
     op: DOp,
     n: i64,
@@ -474,7 +479,7 @@ fn apply_dop(d: Date, op: DOp, n: i64) -> Date {
 }
 
 #[must_use]
-#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Copy, Clone, Serialize, Deserialize)]
 pub struct SpanOp {
     pub st: TimeOp,
     pub en: TimeOp, // Exclusive.

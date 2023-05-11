@@ -19,7 +19,7 @@ pub fn ymd<T: Borrow<Tz>>(y: i32, m: u32, d: u32, tz: T) -> Date {
 }
 
 #[must_use]
-#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Ord, PartialOrd)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Ord, PartialOrd, Serialize, Deserialize)]
 pub enum Day {
     Mon = 0,
     Tue = 1,

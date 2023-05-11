@@ -14,11 +14,9 @@ use serde::de::{self, Visitor};
 use serde::{Deserialize, Serialize};
 
 use crate::date::{Date, Day};
-use crate::duration::{Duration, SEC};
+use crate::duration::Duration;
 use crate::op::{TOp, TimeOp};
 use crate::span::endpoint::EndpointConversion;
-
-pub const LOCAL_FMT: &str = "%Y-%m-%dT%H:%M:%S%.f";
 
 pub fn ymdhms<T: Borrow<Tz>>(
     year: i32,
@@ -41,6 +39,8 @@ pub struct Time {
 
 /// Creation
 impl Time {
+    pub const LOCAL_FMT: &str = "%Y-%m-%dT%H:%M:%S%.f";
+
     pub const fn new(t: DateTime<Tz>) -> Self {
         Self { t }
     }
@@ -105,7 +105,7 @@ impl Time {
 
     /// From a local time.
     pub fn from_local(s: &str, tz: Tz) -> Result<Self> {
-        Self::from_local_datetime_fmt(s, LOCAL_FMT, tz)
+        Self::from_local_datetime_fmt(s, Self::LOCAL_FMT, tz)
     }
 
     /// Take the naive datetime assumed to be in the given timezone, and
@@ -127,7 +127,7 @@ impl Time {
 
     #[must_use]
     pub fn to_local(&self) -> String {
-        self.t.format(LOCAL_FMT).to_string()
+        self.t.format(Self::LOCAL_FMT).to_string()
     }
 
     #[must_use]
@@ -327,7 +327,7 @@ impl From<Time> for f64 {
     }
 }
 
-impl_op_ex!(-|a: &Time, b: &Time| -> Duration { (a.utc_dec() - b.utc_dec()) * SEC });
+impl_op_ex!(-|a: &Time, b: &Time| -> Duration { (a.utc_dec() - b.utc_dec()) * Duration::SEC });
 
 impl_op_ex!(-|a: &Time, b: &Duration| -> Time {
     Time::from_utc_dec(a.utc_dec() - b.secs(), a.t.timezone())
