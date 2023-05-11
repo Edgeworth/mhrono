@@ -5,7 +5,7 @@ use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 
 use crate::duration::Duration;
-use crate::freq::Freq;
+use crate::fixed_freq::FixedFreq;
 use crate::span::endpoint::EndpointConversion;
 
 /// Number of occurrences of something.
@@ -47,7 +47,7 @@ impl_op_ex!(-= |a: &mut Cycles, b: &Cycles| { *a = *a - b });
 impl_op_ex!(/ |a: &Cycles, b: &Cycles| -> Decimal { a.count / b.count });
 
 // cycle / dur = freq
-impl_op_ex!(/ |a: &Cycles, b: &Duration| -> Freq { Freq::new(*a, *b) });
+impl_op_ex!(/ |a: &Cycles, b: &Duration| -> FixedFreq { FixedFreq::new(*a, *b) });
 
 // dur * cycles = dur
 impl_op_ex_commutative!(*|a: &Cycles, b: &Duration| -> Duration { *b * a.count });
