@@ -3,6 +3,7 @@ use derive_more::Display;
 use num_traits::ToPrimitive;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
+use serde::{Deserialize, Serialize};
 
 use crate::duration::Duration;
 use crate::fixed_freq::FixedFreq;
@@ -10,7 +11,9 @@ use crate::span::endpoint::EndpointConversion;
 
 /// Number of occurrences of something.
 #[must_use]
-#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Display, Ord, PartialOrd)]
+#[derive(
+    Debug, Eq, PartialEq, Hash, Copy, Clone, Display, Ord, PartialOrd, Serialize, Deserialize,
+)]
 pub struct Cycles {
     count: Decimal,
 }

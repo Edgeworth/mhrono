@@ -13,9 +13,7 @@ use serde::de::{self, Visitor};
 use serde::{ser, Deserialize, Serialize};
 
 use crate::cycles::Cycles;
-use crate::duration::{
-    Duration, ASEC, BASES, DAY, FSEC, HOUR, MIN, MSEC, NSEC, PSEC, SEC, USEC, WEEK,
-};
+use crate::duration::Duration;
 
 /// Number of times something happens in a second. Hertz.
 #[must_use]
@@ -57,6 +55,18 @@ impl PartialEq for FixedFreq {
 }
 
 impl FixedFreq {
+    pub const ASECLY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::ASEC);
+    pub const FSECLY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::FSEC);
+    pub const PSECLY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::PSEC);
+    pub const NSECLY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::NSEC);
+    pub const USECLY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::USEC);
+    pub const MSECLY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::MSEC);
+    pub const SECLY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::SEC);
+    pub const MINLY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::MIN);
+    pub const HOURLY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::HOUR);
+    pub const DAILY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::DAY);
+    pub const WEEKLY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::WEEK);
+
     pub const fn from_hz(hz: Decimal) -> Self {
         Self { num: hz, denom: dec!(1) }
     }
@@ -88,7 +98,7 @@ impl FixedFreq {
     }
 
     pub fn human(&self) -> Result<String> {
-        self.human_bases(BASES)
+        self.human_bases(Duration::BASES)
     }
 
     pub fn human_bases(&self, bases: &[(&str, Duration)]) -> Result<String> {
@@ -120,9 +130,8 @@ impl_op_ex_commutative!(*|a: &FixedFreq, b: &Cycles| -> Duration {
     Duration::new(b.count() * a.denom / a.num)
 });
 
-macro_rules! freq_ops {
+macro_rules! fixed_freq_ops {
     ($t:ty) => {
-
         impl_op_ex_commutative!(* |a: &FixedFreq, b: &$t| -> FixedFreq { FixedFreq { num: a.num * Decimal::try_from(*b).unwrap(), denom: a.denom } });
         impl_op_ex!(*= |a: &mut FixedFreq, b: &$t| { a.num *= Decimal::try_from(*b).unwrap() });
 
@@ -131,8 +140,14 @@ macro_rules! freq_ops {
     };
 }
 
-freq_ops!(i64);
-freq_ops!(Decimal);
+fixed_freq_ops!(i16);
+fixed_freq_ops!(u16);
+fixed_freq_ops!(i32);
+fixed_freq_ops!(u32);
+fixed_freq_ops!(i64);
+fixed_freq_ops!(u64);
+fixed_freq_ops!(usize);
+fixed_freq_ops!(Decimal);
 
 impl ToPrimitive for FixedFreq {
     fn to_i64(&self) -> Option<i64> {
@@ -185,18 +200,6 @@ impl FromStr for FixedFreq {
     }
 }
 
-pub const ASECLY: FixedFreq = FixedFreq::new(Cycles::one(), ASEC);
-pub const FSECLY: FixedFreq = FixedFreq::new(Cycles::one(), FSEC);
-pub const PSECLY: FixedFreq = FixedFreq::new(Cycles::one(), PSEC);
-pub const NSECLY: FixedFreq = FixedFreq::new(Cycles::one(), NSEC);
-pub const USECLY: FixedFreq = FixedFreq::new(Cycles::one(), USEC);
-pub const MSECLY: FixedFreq = FixedFreq::new(Cycles::one(), MSEC);
-pub const SECLY: FixedFreq = FixedFreq::new(Cycles::one(), SEC);
-pub const MINLY: FixedFreq = FixedFreq::new(Cycles::one(), MIN);
-pub const HOURLY: FixedFreq = FixedFreq::new(Cycles::one(), HOUR);
-pub const DAILY: FixedFreq = FixedFreq::new(Cycles::one(), DAY);
-pub const WEEKLY: FixedFreq = FixedFreq::new(Cycles::one(), WEEK);
-
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
@@ -205,7 +208,7 @@ mod tests {
 
     #[test]
     fn serialization() -> Result<()> {
-        let freq = DAILY;
+        let freq = FixedFreq::DAILY;
         let se = serde_json::to_string(&freq)?;
         assert_eq!(se, "\"1d\"");
         let de: FixedFreq = serde_json::from_str(&se)?;
@@ -257,7 +260,7 @@ mod tests {
         let freq1 = FixedFreq::from_hz(dec!(60));
         let freq2 = FixedFreq::from_hz(dec!(120));
         assert!(freq1 < freq2);
-        assert!(HOURLY > DAILY);
+        assert!(FixedFreq::HOURLY > FixedFreq::DAILY);
     }
 
     #[test]

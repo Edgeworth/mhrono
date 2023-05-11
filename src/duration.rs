@@ -16,20 +16,6 @@ use serde::{ser, Deserialize, Serialize};
 
 use crate::span::endpoint::EndpointConversion;
 
-pub const BASES: &[(&str, Duration)] = &[
-    ("w", WEEK),
-    ("d", DAY),
-    ("h", HOUR),
-    ("m", MIN),
-    ("s", SEC),
-    ("ms", MSEC),
-    ("us", USEC),
-    ("ns", NSEC),
-    ("ps", PSEC),
-    ("fs", FSEC),
-    ("as", ASEC),
-];
-
 #[must_use]
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Display, Ord, PartialOrd)]
 #[display(fmt = "{}", "self.human().unwrap_or_else(|_| self.secs.to_string())")]
@@ -38,6 +24,32 @@ pub struct Duration {
 }
 
 impl Duration {
+    pub const ASEC: Duration = Duration::new(dec!(0.000000000000000001));
+    pub const FSEC: Duration = Duration::new(dec!(0.000000000000001));
+    pub const PSEC: Duration = Duration::new(dec!(0.000000000001));
+    pub const NSEC: Duration = Duration::new(dec!(0.000000001));
+    pub const USEC: Duration = Duration::new(dec!(0.000001));
+    pub const MSEC: Duration = Duration::new(dec!(0.001));
+    pub const SEC: Duration = Duration::new(dec!(1));
+    pub const MIN: Duration = Duration::new(dec!(60));
+    pub const HOUR: Duration = Duration::new(dec!(3600));
+    pub const DAY: Duration = Duration::new(dec!(86400));
+    pub const WEEK: Duration = Duration::new(dec!(604800));
+
+    pub const BASES: &[(&'static str, Duration)] = &[
+        ("w", Duration::WEEK),
+        ("d", Duration::DAY),
+        ("h", Duration::HOUR),
+        ("m", Duration::MIN),
+        ("s", Duration::SEC),
+        ("ms", Duration::MSEC),
+        ("us", Duration::USEC),
+        ("ns", Duration::NSEC),
+        ("ps", Duration::PSEC),
+        ("fs", Duration::FSEC),
+        ("as", Duration::ASEC),
+    ];
+
     pub const fn new(secs: Decimal) -> Self {
         Self { secs }
     }
@@ -69,7 +81,7 @@ impl Duration {
     }
 
     pub fn human(&self) -> Result<String> {
-        self.human_bases(BASES)
+        self.human_bases(Duration::BASES)
     }
 
     pub fn human_bases(&self, bases: &[(&str, Duration)]) -> Result<String> {
@@ -107,7 +119,7 @@ impl Duration {
         for c in s.chars().chain(once('0')) {
             if let Some(digit) = c.to_digit(10) {
                 if !is_digit {
-                    let base = BASES
+                    let base = Duration::BASES
                         .iter()
                         .find(|v| v.0 == cur_ident)
                         .ok_or_else(|| eyre!("unknown duration"))?;
@@ -250,18 +262,6 @@ impl EndpointConversion for Duration {
     }
 }
 
-pub const ASEC: Duration = Duration::new(dec!(0.000000000000000001));
-pub const FSEC: Duration = Duration::new(dec!(0.000000000000001));
-pub const PSEC: Duration = Duration::new(dec!(0.000000000001));
-pub const NSEC: Duration = Duration::new(dec!(0.000000001));
-pub const USEC: Duration = Duration::new(dec!(0.000001));
-pub const MSEC: Duration = Duration::new(dec!(0.001));
-pub const SEC: Duration = Duration::new(dec!(1));
-pub const MIN: Duration = Duration::new(dec!(60));
-pub const HOUR: Duration = Duration::new(dec!(3600));
-pub const DAY: Duration = Duration::new(dec!(86400));
-pub const WEEK: Duration = Duration::new(dec!(604800));
-
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
@@ -271,51 +271,60 @@ mod tests {
     #[test]
     fn human() -> Result<()> {
         assert!(Duration::new(Decimal::new(1, 26)).human().is_err());
-        assert_eq!("1as", ASEC.human()?);
-        assert_eq!("1fs", FSEC.human()?);
-        assert_eq!("1ps", PSEC.human()?);
-        assert_eq!("1ns", NSEC.human()?);
-        assert_eq!("1us", USEC.human()?);
-        assert_eq!("1ms", MSEC.human()?);
-        assert_eq!("1s", SEC.human()?);
-        assert_eq!("1s1ms", (SEC + MSEC).human()?);
-        assert_eq!("1s1ms1us", (SEC + MSEC + USEC).human()?);
-        assert_eq!("1s1ms1us1ns", (SEC + MSEC + USEC + NSEC).human()?);
-        assert_eq!("1m", MIN.human()?);
-        assert_eq!("1h", HOUR.human()?);
-        assert_eq!("1d", DAY.human()?);
-        assert_eq!("1w", WEEK.human()?);
-        assert_eq!("5m", (5 * MIN).human()?);
-        assert_eq!("15m", (15 * MIN).human()?);
-        assert_eq!("15m7s", (15 * MIN + 7 * SEC).human()?);
+        assert_eq!("1as", Duration::ASEC.human()?);
+        assert_eq!("1fs", Duration::FSEC.human()?);
+        assert_eq!("1ps", Duration::PSEC.human()?);
+        assert_eq!("1ns", Duration::NSEC.human()?);
+        assert_eq!("1us", Duration::USEC.human()?);
+        assert_eq!("1ms", Duration::MSEC.human()?);
+        assert_eq!("1s", Duration::SEC.human()?);
+        assert_eq!("1s1ms", (Duration::SEC + Duration::MSEC).human()?);
+        assert_eq!("1s1ms1us", (Duration::SEC + Duration::MSEC + Duration::USEC).human()?);
+        assert_eq!(
+            "1s1ms1us1ns",
+            (Duration::SEC + Duration::MSEC + Duration::USEC + Duration::NSEC).human()?
+        );
+        assert_eq!("1m", Duration::MIN.human()?);
+        assert_eq!("1h", Duration::HOUR.human()?);
+        assert_eq!("1d", Duration::DAY.human()?);
+        assert_eq!("1w", Duration::WEEK.human()?);
+        assert_eq!("5m", (5 * Duration::MIN).human()?);
+        assert_eq!("15m", (15 * Duration::MIN).human()?);
+        assert_eq!("15m7s", (15 * Duration::MIN + 7 * Duration::SEC).human()?);
         Ok(())
     }
 
     #[test]
     fn from_human() -> Result<()> {
-        assert_eq!(Duration::from_human("1as")?, ASEC);
-        assert_eq!(Duration::from_human("1fs")?, FSEC);
-        assert_eq!(Duration::from_human("1ps")?, PSEC);
-        assert_eq!(Duration::from_human("1ns")?, NSEC);
-        assert_eq!(Duration::from_human("1us")?, USEC);
-        assert_eq!(Duration::from_human("1ms")?, MSEC);
-        assert_eq!(Duration::from_human("1s")?, SEC);
-        assert_eq!(Duration::from_human("1s1ms")?, (SEC + MSEC));
-        assert_eq!(Duration::from_human("1s1ms1us")?, (SEC + MSEC + USEC));
-        assert_eq!(Duration::from_human("1s1ms1us1ns")?, (SEC + MSEC + USEC + NSEC));
-        assert_eq!(Duration::from_human("1m")?, MIN);
-        assert_eq!(Duration::from_human("1h")?, HOUR);
-        assert_eq!(Duration::from_human("1d")?, DAY);
-        assert_eq!(Duration::from_human("1w")?, WEEK);
-        assert_eq!(Duration::from_human("5m")?, (5 * MIN));
-        assert_eq!(Duration::from_human("15m")?, (15 * MIN));
-        assert_eq!(Duration::from_human("15m7s")?, (15 * MIN + 7 * SEC));
+        assert_eq!(Duration::from_human("1as")?, Duration::ASEC);
+        assert_eq!(Duration::from_human("1fs")?, Duration::FSEC);
+        assert_eq!(Duration::from_human("1ps")?, Duration::PSEC);
+        assert_eq!(Duration::from_human("1ns")?, Duration::NSEC);
+        assert_eq!(Duration::from_human("1us")?, Duration::USEC);
+        assert_eq!(Duration::from_human("1ms")?, Duration::MSEC);
+        assert_eq!(Duration::from_human("1s")?, Duration::SEC);
+        assert_eq!(Duration::from_human("1s1ms")?, (Duration::SEC + Duration::MSEC));
+        assert_eq!(
+            Duration::from_human("1s1ms1us")?,
+            (Duration::SEC + Duration::MSEC + Duration::USEC)
+        );
+        assert_eq!(
+            Duration::from_human("1s1ms1us1ns")?,
+            (Duration::SEC + Duration::MSEC + Duration::USEC + Duration::NSEC)
+        );
+        assert_eq!(Duration::from_human("1m")?, Duration::MIN);
+        assert_eq!(Duration::from_human("1h")?, Duration::HOUR);
+        assert_eq!(Duration::from_human("1d")?, Duration::DAY);
+        assert_eq!(Duration::from_human("1w")?, Duration::WEEK);
+        assert_eq!(Duration::from_human("5m")?, (5 * Duration::MIN));
+        assert_eq!(Duration::from_human("15m")?, (15 * Duration::MIN));
+        assert_eq!(Duration::from_human("15m7s")?, (15 * Duration::MIN + 7 * Duration::SEC));
         Ok(())
     }
 
     #[test]
     fn serialization() -> Result<()> {
-        let dur = DAY;
+        let dur = Duration::DAY;
         let se = serde_json::to_string(&dur)?;
         assert_eq!(se, "\"1d\"");
         let de: Duration = serde_json::from_str(&se)?;

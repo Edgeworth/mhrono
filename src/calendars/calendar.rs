@@ -73,7 +73,7 @@ impl<R: Ranger> Ranger for RangerUnion<'_, R> {
     }
 }
 
-// TODO: handle early closes
+// TODO(1): handle early closes
 #[must_use]
 #[derive(Clone)]
 pub struct Calendar {
