@@ -21,7 +21,7 @@ rand = "0.8.5"
 regex = "1.8.1"
 rust_decimal = {version = "1.29.1", features = ["std"]}
 rust_decimal_macros = "1.29.1"
-serde = {version = "1.0.160", features = ["derive"]}
+serde = {version = "1.0.162", features = ["derive"]}
 
 [dev-dependencies]
 criterion = {version = "0.4.0", features = ["real_blackbox"]}
