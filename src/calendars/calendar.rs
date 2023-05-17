@@ -116,12 +116,13 @@ impl Calendar {
         }
     }
 
-    pub fn next_span(&mut self, mut t: Time) -> Option<SpanExc<Time>> {
-        t = t.with_tz(self.tz);
+    /// Finds the first span that starts at or after the given time.
+    pub fn next_span(&mut self, t: &Time) -> Option<SpanExc<Time>> {
+        let mut t = t.with_tz(self.tz);
         loop {
             let d = t.date();
             if !self.cache.contains(d, &mut RangerUnion::new(&mut self.hols)) {
-                if let Some(s) = self.next_span_in_day(d, t) {
+                if let Some(s) = self.next_span_in_day(d, &t) {
                     return Some(s);
                 }
             }
@@ -131,7 +132,7 @@ impl Calendar {
         }
     }
 
-    fn next_span_in_day(&mut self, d: Date, t: Time) -> Option<SpanExc<Time>> {
+    fn next_span_in_day(&mut self, d: Date, t: &Time) -> Option<SpanExc<Time>> {
         // Check overrides.
         for (opens, daysets, cache) in &mut self.overrides {
             // If there's an override span today, then process the opens for this override.
@@ -144,13 +145,13 @@ impl Calendar {
         Self::find_next_span_in_opens(d, t, &self.opens)
     }
 
-    fn find_next_span_in_opens(d: Date, t: Time, opens: &[SpanOp]) -> Option<SpanExc<Time>> {
+    fn find_next_span_in_opens(d: Date, t: &Time, opens: &[SpanOp]) -> Option<SpanExc<Time>> {
         // Find first non-zero span starting >= t.
         // SpanOps from midnight.
         let base_t: Time = d.time().unwrap();
         for open in opens.iter() {
             let s = open.apply(base_t);
-            if s.st >= t {
+            if s.st >= *t {
                 return Some(s);
             }
         }

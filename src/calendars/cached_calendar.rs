@@ -19,7 +19,7 @@ impl CachedCalendar {
 
         let mut cur_t = span.st;
         while cur_t < span.en {
-            if let Some(next) = cal.next_span(cur_t) {
+            if let Some(next) = cal.next_span(&cur_t) {
                 spans.push(next);
                 cur_t = next.en;
             } else {
@@ -30,11 +30,11 @@ impl CachedCalendar {
         Self { spans, span }
     }
 
-    pub fn next_span(&self, t: Time) -> Result<Option<SpanExc<Time>>> {
-        if !self.span.contains(&t) {
+    pub fn next_span(&self, t: &Time) -> Result<Option<SpanExc<Time>>> {
+        if !self.span.contains(t) {
             return Err(eyre!("requested time {} outside of cached span {}", t, self.span));
         }
-        let idx = self.spans.partition_point(|v| v.st <= t);
+        let idx = self.spans.partition_point(|v| v.st <= *t);
         if idx < self.spans.len() {
             Ok(Some(self.spans[idx]))
         } else {

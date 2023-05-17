@@ -173,6 +173,31 @@ impl Time {
     }
 
     #[must_use]
+    pub fn nanosecond(&self) -> u32 {
+        self.t.nanosecond()
+    }
+
+    #[must_use]
+    pub fn microsecond(&self) -> u32 {
+        self.t.nanosecond() / 1000
+    }
+
+    #[must_use]
+    pub fn second(&self) -> u32 {
+        self.t.second()
+    }
+
+    #[must_use]
+    pub fn minute(&self) -> u32 {
+        self.t.minute()
+    }
+
+    #[must_use]
+    pub fn hour(&self) -> u32 {
+        self.t.hour()
+    }
+
+    #[must_use]
     pub fn day(&self) -> u32 {
         self.t.day()
     }
@@ -230,75 +255,75 @@ impl Time {
         }
     }
 
-    pub fn with_nanos(self, ns: u32) -> Self {
+    pub fn with_nanos(&self, ns: u32) -> Self {
         self.t.with_nanosecond(ns).unwrap().into()
     }
 
-    pub fn add_nanos(self, ns: i64) -> Self {
+    pub fn add_nanos(&self, ns: i64) -> Self {
         (self.t + chrono::Duration::nanoseconds(ns)).into()
     }
 
-    pub fn with_micros(self, us: u32) -> Self {
+    pub fn with_micros(&self, us: u32) -> Self {
         self.t.with_nanosecond(us * 1000).unwrap().into()
     }
 
-    pub fn add_micros(self, us: i64) -> Self {
+    pub fn add_micros(&self, us: i64) -> Self {
         (self.t + chrono::Duration::microseconds(us)).into()
     }
 
-    pub fn with_millis(self, ms: u32) -> Self {
+    pub fn with_millis(&self, ms: u32) -> Self {
         self.t.with_nanosecond(ms * 1000 * 1000).unwrap().into()
     }
 
-    pub fn add_millis(self, ms: i64) -> Self {
+    pub fn add_millis(&self, ms: i64) -> Self {
         (self.t + chrono::Duration::milliseconds(ms)).into()
     }
 
-    pub fn with_sec(self, s: u32) -> Self {
+    pub fn with_sec(&self, s: u32) -> Self {
         self.t.with_second(s.clamp(0, 59)).unwrap().into()
     }
 
-    pub fn add_secs(self, secs: i64) -> Self {
+    pub fn add_secs(&self, secs: i64) -> Self {
         (self.t + chrono::Duration::seconds(secs)).into()
     }
 
-    pub fn with_min(self, m: u32) -> Self {
+    pub fn with_min(&self, m: u32) -> Self {
         self.t.with_minute(m.clamp(0, 59)).unwrap().into()
     }
 
-    pub fn add_mins(self, mins: i64) -> Self {
+    pub fn add_mins(&self, mins: i64) -> Self {
         (self.t + chrono::Duration::minutes(mins)).into()
     }
 
-    pub fn with_hour(self, h: u32) -> Self {
+    pub fn with_hour(&self, h: u32) -> Self {
         self.t.with_hour(h.clamp(0, 23)).unwrap().into()
     }
 
-    pub fn add_hours(self, h: i64) -> Self {
+    pub fn add_hours(&self, h: i64) -> Self {
         (self.t + chrono::Duration::hours(h)).into()
     }
 
-    pub fn with_day(self, d: u32) -> Self {
+    pub fn with_day(&self, d: u32) -> Self {
         self.with_date(self.date().with_day(d))
     }
 
-    pub fn add_days(self, d: i32) -> Self {
+    pub fn add_days(&self, d: i32) -> Self {
         self.with_date(self.date().add_days(d))
     }
 
-    pub fn with_month(self, m: u32) -> Self {
+    pub fn with_month(&self, m: u32) -> Self {
         self.with_date(self.date().with_month(m))
     }
 
-    pub fn add_months(self, m: i32) -> Self {
+    pub fn add_months(&self, m: i32) -> Self {
         self.with_date(self.date().add_months(m))
     }
 
-    pub fn with_year(self, y: i32) -> Self {
+    pub fn with_year(&self, y: i32) -> Self {
         self.with_date(self.date().with_year(y))
     }
 
-    pub fn add_years(self, y: i32) -> Self {
+    pub fn add_years(&self, y: i32) -> Self {
         self.with_date(self.date().add_years(y))
     }
 }

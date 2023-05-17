@@ -105,6 +105,26 @@ pub trait Series {
         Ok(())
     }
 
+    fn push_series(&mut self, series: &impl Series<V = Self::V>) -> Result<()> {
+        let mut normalize = false;
+        for v in series.iter() {
+            normalize |= self.unchecked_push(v.clone())?;
+        }
+        if normalize {
+            self.normalize()?;
+        }
+        Ok(())
+    }
+
+    fn pop(&mut self) -> Option<Self::V> {
+        self.inner_mut().pop()
+    }
+
+    /// Find the first thing greater than |x|
+    fn upper_bound(&self, x: Self::X) -> Option<&Self::V> {
+        self.upper_bound_idx(x).and_then(|idx| self.get(idx))
+    }
+
     /// Find the first thing greater than |x|
     fn upper_bound_idx(&self, x: Self::X) -> Option<usize> {
         let data = &self.slice();
@@ -321,7 +341,7 @@ pub trait Series {
 macro_rules! series_ops {
     ($t:ty) => { series_ops!($t;); };
     ($t:ty; $($bounds:tt)*) => {
-        impl<$($bounds)*> std::ops::Index<usize> for $t {
+        impl<$($bounds)*> std::ops::Index<usize> for $t where $t: Series {
             type Output = <Self as Series>::V;
 
             fn index(&self, index: usize) -> &Self::Output {
@@ -329,7 +349,7 @@ macro_rules! series_ops {
             }
         }
 
-        impl<'a, $($bounds)*> IntoIterator for &'a $t {
+        impl<'a, $($bounds)*> IntoIterator for &'a $t where $t: Series {
             type Item = &'a <$t as Series>::V;
             type IntoIter = std::slice::Iter<'a, <$t as Series>::V>;
 

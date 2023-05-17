@@ -14,7 +14,7 @@ fn calendar(c: &mut Criterion) {
         g.throughput(Throughput::Elements(1));
         let t = date.time().unwrap();
         g.bench_with_input(BenchmarkId::new("oneshot", t), &t, |b, &t| {
-            b.iter_batched(get_nyse, |mut nyse| nyse.next_span(t), BatchSize::SmallInput)
+            b.iter_batched(get_nyse, |mut nyse| nyse.next_span(&t), BatchSize::SmallInput)
         });
     }
 
@@ -26,7 +26,7 @@ fn calendar(c: &mut Criterion) {
     g.bench_with_input(BenchmarkId::new("range", iter.clone()), &iter, |b, iter| {
         b.iter(|| {
             for t in iter.clone() {
-                let _ = black_box(nyse.next_span(t.time().unwrap()).unwrap());
+                let _ = black_box(nyse.next_span(&t.time().unwrap()).unwrap());
             }
         })
     });

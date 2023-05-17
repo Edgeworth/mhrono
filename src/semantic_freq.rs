@@ -95,9 +95,9 @@ impl PartialOrd for Freq {
 }
 
 impl Freq {
-    pub const MSECLY: Freq = Freq::millis(1);
-    pub const SECLY: Freq = Freq::secs(1);
-    pub const MINLY: Freq = Freq::mins(1);
+    pub const MILLI: Freq = Freq::millis(1);
+    pub const SECOND: Freq = Freq::secs(1);
+    pub const MINUTE: Freq = Freq::mins(1);
     pub const HOURLY: Freq = Freq::hours(1);
     pub const DAILY: Freq = Freq::days(1);
     pub const WEEKLY: Freq = Freq::weeks(1);
@@ -149,7 +149,7 @@ impl Freq {
         Self::new(count, SemanticFreq::Year)
     }
 
-    pub fn next(&self, t: Time) -> Time {
+    pub fn next(&self, t: &Time) -> Time {
         match self.base {
             SemanticFreq::Millisecond => t.add_millis(self.count as i64),
             SemanticFreq::Second => t.add_secs(self.count as i64),
@@ -162,7 +162,7 @@ impl Freq {
         }
     }
 
-    pub fn prev(&self, t: Time) -> Time {
+    pub fn prev(&self, t: &Time) -> Time {
         match self.base {
             SemanticFreq::Millisecond => t.add_millis(-self.count as i64),
             SemanticFreq::Second => t.add_secs(-self.count as i64),
@@ -258,19 +258,19 @@ mod tests {
 
     #[test]
     fn serialization() -> Result<()> {
-        let freq = Freq::MSECLY;
+        let freq = Freq::MILLI;
         let se = serde_json::to_string(&freq)?;
         assert_eq!(se, "\"1ms\"");
         let de: Freq = serde_json::from_str(&se)?;
         assert_eq!(de, freq);
 
-        let freq = Freq::SECLY;
+        let freq = Freq::SECOND;
         let se = serde_json::to_string(&freq)?;
         assert_eq!(se, "\"1s\"");
         let de: Freq = serde_json::from_str(&se)?;
         assert_eq!(de, freq);
 
-        let freq = Freq::MINLY;
+        let freq = Freq::MINUTE;
         let se = serde_json::to_string(&freq)?;
         assert_eq!(se, "\"1m\"");
         let de: Freq = serde_json::from_str(&se)?;
@@ -335,7 +335,7 @@ mod tests {
     #[test]
     fn test_freq_ord() {
         assert!(Freq::HOURLY > Freq::DAILY);
-        assert!(Freq::SECLY > Freq::DAILY);
+        assert!(Freq::SECOND > Freq::DAILY);
         assert!(Freq::MONTHLY < Freq::DAILY);
         assert!(Freq::weeks(2) < Freq::WEEKLY);
     }
@@ -354,26 +354,26 @@ mod tests {
     fn test_next() {
         let t = ymdhms(2017, 3, 5, 2, 57, 12, Eastern);
 
-        assert_eq!(Freq::SECLY.next(t), ymdhms(2017, 3, 5, 2, 57, 13, Eastern));
-        assert_eq!(Freq::MINLY.next(t), ymdhms(2017, 3, 5, 2, 58, 12, Eastern));
-        assert_eq!(Freq::HOURLY.next(t), ymdhms(2017, 3, 5, 3, 57, 12, Eastern));
-        assert_eq!(Freq::DAILY.next(t), ymdhms(2017, 3, 6, 2, 57, 12, Eastern));
+        assert_eq!(Freq::SECOND.next(&t), ymdhms(2017, 3, 5, 2, 57, 13, Eastern));
+        assert_eq!(Freq::MINUTE.next(&t), ymdhms(2017, 3, 5, 2, 58, 12, Eastern));
+        assert_eq!(Freq::HOURLY.next(&t), ymdhms(2017, 3, 5, 3, 57, 12, Eastern));
+        assert_eq!(Freq::DAILY.next(&t), ymdhms(2017, 3, 6, 2, 57, 12, Eastern));
         // This time non-existent so skip forward to next possible time.
-        assert_eq!(Freq::WEEKLY.next(t), ymdhms(2017, 3, 12, 3, 0, 0, Eastern));
-        assert_eq!(Freq::MONTHLY.next(t), ymdhms(2017, 4, 5, 2, 57, 12, Eastern));
-        assert_eq!(Freq::YEARLY.next(t), ymdhms(2018, 3, 5, 2, 57, 12, Eastern));
+        assert_eq!(Freq::WEEKLY.next(&t), ymdhms(2017, 3, 12, 3, 0, 0, Eastern));
+        assert_eq!(Freq::MONTHLY.next(&t), ymdhms(2017, 4, 5, 2, 57, 12, Eastern));
+        assert_eq!(Freq::YEARLY.next(&t), ymdhms(2018, 3, 5, 2, 57, 12, Eastern));
     }
     #[test]
     fn test_prev() {
         let t = ymdhms(2017, 3, 5, 2, 57, 12, Eastern);
 
-        assert_eq!(Freq::SECLY.prev(t), ymdhms(2017, 3, 5, 2, 57, 11, Eastern));
-        assert_eq!(Freq::MINLY.prev(t), ymdhms(2017, 3, 5, 2, 56, 12, Eastern));
-        assert_eq!(Freq::HOURLY.prev(t), ymdhms(2017, 3, 5, 1, 57, 12, Eastern));
-        assert_eq!(Freq::DAILY.prev(t), ymdhms(2017, 3, 4, 2, 57, 12, Eastern));
-        assert_eq!(Freq::WEEKLY.prev(t), ymdhms(2017, 2, 26, 2, 57, 12, Eastern));
-        assert_eq!(Freq::MONTHLY.prev(t), ymdhms(2017, 2, 5, 2, 57, 12, Eastern));
-        assert_eq!(Freq::YEARLY.prev(t), ymdhms(2016, 3, 5, 2, 57, 12, Eastern));
+        assert_eq!(Freq::SECOND.prev(&t), ymdhms(2017, 3, 5, 2, 57, 11, Eastern));
+        assert_eq!(Freq::MINUTE.prev(&t), ymdhms(2017, 3, 5, 2, 56, 12, Eastern));
+        assert_eq!(Freq::HOURLY.prev(&t), ymdhms(2017, 3, 5, 1, 57, 12, Eastern));
+        assert_eq!(Freq::DAILY.prev(&t), ymdhms(2017, 3, 4, 2, 57, 12, Eastern));
+        assert_eq!(Freq::WEEKLY.prev(&t), ymdhms(2017, 2, 26, 2, 57, 12, Eastern));
+        assert_eq!(Freq::MONTHLY.prev(&t), ymdhms(2017, 2, 5, 2, 57, 12, Eastern));
+        assert_eq!(Freq::YEARLY.prev(&t), ymdhms(2016, 3, 5, 2, 57, 12, Eastern));
     }
 
     #[test]
