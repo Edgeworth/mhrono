@@ -17,7 +17,7 @@ fn nyse_spans() -> Result<()> {
     let mut t = ymd(START_YEAR, 1, 1, Eastern).time()?;
     let mut nyse = get_nyse();
     loop {
-        let s = nyse.next_span(t).unwrap();
+        let s = nyse.next_span(&t).unwrap();
         if s.st >= ymd(END_YEAR, 1, 1, Eastern).time()? {
             break;
         }
@@ -37,7 +37,7 @@ fn nyse_holidays() -> Result<()> {
 
     for d in DateIter::day(ymd(START_YEAR, 1, 1, Eastern), ymd(END_YEAR, 1, 1, Eastern)) {
         let t = d.time()?;
-        let s = nyse.next_span(t).unwrap();
+        let s = nyse.next_span(&t).unwrap();
         if t.ymd()? != s.st.ymd()? {
             writeln!(f, "{}", &t.to_iso()[..10])?; // Holiday.
         }

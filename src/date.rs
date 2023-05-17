@@ -122,7 +122,7 @@ impl Date {
         self.d.day()
     }
 
-    pub fn with_day(self, d: u32) -> Self {
+    pub fn with_day(&self, d: u32) -> Self {
         for max in (28..=31).rev() {
             if let Some(res) = self.d.with_day(d.clamp(1, max)) {
                 return Self::new(res, self.tz());
@@ -131,7 +131,7 @@ impl Date {
         panic!("bug: invalid day {d}");
     }
 
-    pub fn add_days(self, d: i32) -> Self {
+    pub fn add_days(&self, d: i32) -> Self {
         Self::new(self.d + chrono::Duration::days(i64::from(d)), self.tz())
     }
 
@@ -162,12 +162,12 @@ impl Date {
         self.d.month()
     }
 
-    pub fn with_month(self, m: u32) -> Self {
+    pub fn with_month(&self, m: u32) -> Self {
         let d = self.day();
         Self::new(self.with_day(1).d.with_month(m).unwrap(), self.tz()).with_day(d)
     }
 
-    pub fn add_months(self, add_m: i32) -> Self {
+    pub fn add_months(&self, add_m: i32) -> Self {
         let d = self.day();
         let total_m = self.month0() as i32 + add_m;
         let y = total_m.div_euclid(12) + self.year();
@@ -180,12 +180,12 @@ impl Date {
         self.d.year()
     }
 
-    pub fn with_year(self, y: i32) -> Self {
+    pub fn with_year(&self, y: i32) -> Self {
         let d = self.day();
         Self::new(self.with_day(1).d.with_year(y).unwrap(), self.tz()).with_day(d)
     }
 
-    pub fn add_years(self, y: i32) -> Self {
+    pub fn add_years(&self, y: i32) -> Self {
         self.with_year(self.year() + y)
     }
 }

@@ -55,14 +55,14 @@ impl PartialEq for FixedFreq {
 }
 
 impl FixedFreq {
-    pub const ASECLY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::ASEC);
-    pub const FSECLY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::FSEC);
-    pub const PSECLY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::PSEC);
-    pub const NSECLY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::NSEC);
-    pub const USECLY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::USEC);
-    pub const MSECLY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::MSEC);
-    pub const SECLY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::SEC);
-    pub const MINLY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::MIN);
+    pub const ATTO: FixedFreq = FixedFreq::new(Cycles::one(), Duration::ASEC);
+    pub const FEMTO: FixedFreq = FixedFreq::new(Cycles::one(), Duration::FSEC);
+    pub const PICO: FixedFreq = FixedFreq::new(Cycles::one(), Duration::PSEC);
+    pub const NANO: FixedFreq = FixedFreq::new(Cycles::one(), Duration::NSEC);
+    pub const MICRO: FixedFreq = FixedFreq::new(Cycles::one(), Duration::USEC);
+    pub const MILLI: FixedFreq = FixedFreq::new(Cycles::one(), Duration::MSEC);
+    pub const SECOND: FixedFreq = FixedFreq::new(Cycles::one(), Duration::SEC);
+    pub const MINUTE: FixedFreq = FixedFreq::new(Cycles::one(), Duration::MIN);
     pub const HOURLY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::HOUR);
     pub const DAILY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::DAY);
     pub const WEEKLY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::WEEK);
