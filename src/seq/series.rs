@@ -333,6 +333,7 @@ pub trait Series {
     }
 
     fn span(&self) -> SpanAny<Self::X> {
+        assert!(!self.is_empty(), "span of empty series");
         SpanAny::cover(&Self::span_of(self.first().unwrap()), &Self::span_of(self.last().unwrap()))
     }
 }

@@ -61,8 +61,8 @@ impl FixedFreq {
     pub const NANO: FixedFreq = FixedFreq::new(Cycles::one(), Duration::NSEC);
     pub const MICRO: FixedFreq = FixedFreq::new(Cycles::one(), Duration::USEC);
     pub const MILLI: FixedFreq = FixedFreq::new(Cycles::one(), Duration::MSEC);
-    pub const SECOND: FixedFreq = FixedFreq::new(Cycles::one(), Duration::SEC);
-    pub const MINUTE: FixedFreq = FixedFreq::new(Cycles::one(), Duration::MIN);
+    pub const SEC: FixedFreq = FixedFreq::new(Cycles::one(), Duration::SEC);
+    pub const MIN: FixedFreq = FixedFreq::new(Cycles::one(), Duration::MIN);
     pub const HOURLY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::HOUR);
     pub const DAILY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::DAY);
     pub const WEEKLY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::WEEK);

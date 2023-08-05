@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use strum::{Display as StrumDisplay, EnumString};
 
 use crate::duration::Duration;
+use crate::op::{TOp, TimeOp};
 use crate::time::Time;
 
 /// Frequency. For now this should be representable as at most two lowercase
@@ -63,6 +64,18 @@ impl SemanticFreq {
             SemanticFreq::Year => 365 * 24 * 60 * 60 * 1000,
         }
     }
+
+    pub const fn to_top(&self) -> TOp {
+        match *self {
+            SemanticFreq::Millisecond => TOp::AddMillis,
+            SemanticFreq::Second => TOp::AddSecs,
+            SemanticFreq::Minute => TOp::AddMins,
+            SemanticFreq::Hour => TOp::AddHours,
+            SemanticFreq::Day | SemanticFreq::Week => TOp::AddDays,
+            SemanticFreq::Month => TOp::AddMonths,
+            SemanticFreq::Year => TOp::AddYears,
+        }
+    }
 }
 
 #[must_use]
@@ -96,8 +109,8 @@ impl PartialOrd for Freq {
 
 impl Freq {
     pub const MILLI: Freq = Freq::millis(1);
-    pub const SECOND: Freq = Freq::secs(1);
-    pub const MINUTE: Freq = Freq::mins(1);
+    pub const SEC: Freq = Freq::secs(1);
+    pub const MIN: Freq = Freq::mins(1);
     pub const HOURLY: Freq = Freq::hours(1);
     pub const DAILY: Freq = Freq::days(1);
     pub const WEEKLY: Freq = Freq::weeks(1);
@@ -173,6 +186,11 @@ impl Freq {
             SemanticFreq::Month => t.add_months(-self.count as i32),
             SemanticFreq::Year => t.add_years(-self.count as i32),
         }
+    }
+
+    pub const fn to_timeop(&self) -> TimeOp {
+        let mul = if matches!(self.base, SemanticFreq::Week) { 7 } else { 1 };
+        TimeOp::new(self.base.to_top(), mul * (self.count as i64))
     }
 
     #[must_use]
@@ -264,13 +282,13 @@ mod tests {
         let de: Freq = serde_json::from_str(&se)?;
         assert_eq!(de, freq);
 
-        let freq = Freq::SECOND;
+        let freq = Freq::SEC;
         let se = serde_json::to_string(&freq)?;
         assert_eq!(se, "\"1s\"");
         let de: Freq = serde_json::from_str(&se)?;
         assert_eq!(de, freq);
 
-        let freq = Freq::MINUTE;
+        let freq = Freq::MIN;
         let se = serde_json::to_string(&freq)?;
         assert_eq!(se, "\"1m\"");
         let de: Freq = serde_json::from_str(&se)?;
@@ -335,7 +353,7 @@ mod tests {
     #[test]
     fn test_freq_ord() {
         assert!(Freq::HOURLY > Freq::DAILY);
-        assert!(Freq::SECOND > Freq::DAILY);
+        assert!(Freq::SEC > Freq::DAILY);
         assert!(Freq::MONTHLY < Freq::DAILY);
         assert!(Freq::weeks(2) < Freq::WEEKLY);
     }
@@ -354,8 +372,8 @@ mod tests {
     fn test_next() {
         let t = ymdhms(2017, 3, 5, 2, 57, 12, Eastern);
 
-        assert_eq!(Freq::SECOND.next(&t), ymdhms(2017, 3, 5, 2, 57, 13, Eastern));
-        assert_eq!(Freq::MINUTE.next(&t), ymdhms(2017, 3, 5, 2, 58, 12, Eastern));
+        assert_eq!(Freq::SEC.next(&t), ymdhms(2017, 3, 5, 2, 57, 13, Eastern));
+        assert_eq!(Freq::MIN.next(&t), ymdhms(2017, 3, 5, 2, 58, 12, Eastern));
         assert_eq!(Freq::HOURLY.next(&t), ymdhms(2017, 3, 5, 3, 57, 12, Eastern));
         assert_eq!(Freq::DAILY.next(&t), ymdhms(2017, 3, 6, 2, 57, 12, Eastern));
         // This time non-existent so skip forward to next possible time.
@@ -367,8 +385,8 @@ mod tests {
     fn test_prev() {
         let t = ymdhms(2017, 3, 5, 2, 57, 12, Eastern);
 
-        assert_eq!(Freq::SECOND.prev(&t), ymdhms(2017, 3, 5, 2, 57, 11, Eastern));
-        assert_eq!(Freq::MINUTE.prev(&t), ymdhms(2017, 3, 5, 2, 56, 12, Eastern));
+        assert_eq!(Freq::SEC.prev(&t), ymdhms(2017, 3, 5, 2, 57, 11, Eastern));
+        assert_eq!(Freq::MIN.prev(&t), ymdhms(2017, 3, 5, 2, 56, 12, Eastern));
         assert_eq!(Freq::HOURLY.prev(&t), ymdhms(2017, 3, 5, 1, 57, 12, Eastern));
         assert_eq!(Freq::DAILY.prev(&t), ymdhms(2017, 3, 4, 2, 57, 12, Eastern));
         assert_eq!(Freq::WEEKLY.prev(&t), ymdhms(2017, 2, 26, 2, 57, 12, Eastern));

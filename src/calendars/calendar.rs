@@ -67,7 +67,7 @@ impl<'a, R: Ranger> RangerUnion<'a, R> {
 impl<R: Ranger> Ranger for RangerUnion<'_, R> {
     fn append_range<T: Into<SpanExc<Date>>>(&mut self, s: T, v: &mut BTreeSet<Date>) {
         let s = s.into();
-        for r in self.rs.iter_mut() {
+        for r in &mut *self.rs {
             r.append_range(s, v);
         }
     }
@@ -149,7 +149,7 @@ impl Calendar {
         // Find first non-zero span starting >= t.
         // SpanOps from midnight.
         let base_t: Time = d.time().unwrap();
-        for open in opens.iter() {
+        for open in opens {
             let s = open.apply(base_t);
             if s.st >= *t {
                 return Some(s);

@@ -30,6 +30,8 @@ pub fn ymdhms<T: Borrow<Tz>>(
     Time::new(tz.borrow().with_ymd_and_hms(year, month, day, hour, min, sec).unwrap())
 }
 
+/// Note that hashses and comparisons are based on the underlying time, so two
+/// times with different timezones can compare as the same.
 #[must_use]
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Display, Ord, PartialOrd)]
 #[display(fmt = "{t}")]
