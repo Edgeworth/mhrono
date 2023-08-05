@@ -152,6 +152,10 @@ impl TimeOp {
         Self::add_months(1)
     }
 
+    pub const fn weekly() -> Self {
+        Self::add_days(7)
+    }
+
     pub const fn add_days(n: i64) -> Self {
         Self::new(TOp::AddDays, n)
     }
