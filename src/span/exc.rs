@@ -87,11 +87,7 @@ impl<T: PartialOrd + Copy> SpanExc<T> {
     #[must_use]
     pub fn intersect(&self, s: &Self) -> Option<Self> {
         let span = Self::new(pmax(&self.st, &s.st), pmin(&self.en, &s.en));
-        if span.is_empty() {
-            None
-        } else {
-            Some(span)
-        }
+        if span.is_empty() { None } else { Some(span) }
     }
 }
 

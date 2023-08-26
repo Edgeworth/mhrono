@@ -1,4 +1,4 @@
-use std::ops::{Bound, Deref, DerefMut, RangeBounds};
+use std::ops::{Bound, Deref, DerefMut, Index, RangeBounds};
 use std::sync::Arc;
 
 /// Prevents others from modifying `SeriesInner` while we allow outside operations
@@ -8,7 +8,7 @@ pub struct SeriesGuard<'a, V: Clone> {
     inner: &'a mut SeriesInner<V>,
 }
 
-impl<'a, V: Clone> SeriesGuard<'a, V> {
+impl<V: Clone> SeriesGuard<'_, V> {
     #[must_use]
     pub fn vec(&self) -> &Vec<V> {
         &self.inner.data
@@ -19,7 +19,7 @@ impl<'a, V: Clone> SeriesGuard<'a, V> {
     }
 }
 
-impl<'a, V: Clone> Deref for SeriesGuard<'a, V> {
+impl<V: Clone> Deref for SeriesGuard<'_, V> {
     type Target = Vec<V>;
 
     fn deref(&self) -> &Self::Target {
@@ -27,13 +27,13 @@ impl<'a, V: Clone> Deref for SeriesGuard<'a, V> {
     }
 }
 
-impl<'a, V: Clone> DerefMut for SeriesGuard<'a, V> {
+impl<V: Clone> DerefMut for SeriesGuard<'_, V> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.vec_mut()
     }
 }
 
-impl<'a, V: Clone> Drop for SeriesGuard<'a, V> {
+impl<V: Clone> Drop for SeriesGuard<'_, V> {
     fn drop(&mut self) {
         self.inner.st = 0;
         self.inner.en = self.inner.data.len();
@@ -78,6 +78,21 @@ impl<V: Clone> SeriesInner<V> {
     #[must_use]
     pub fn slice(&self) -> &[V] {
         &self.data[self.st..self.en]
+    }
+
+    #[must_use]
+    pub fn first(&self) -> Option<&V> {
+        self.data.get(self.st)
+    }
+
+    #[must_use]
+    pub fn last(&self) -> Option<&V> {
+        if self.en == 0 { None } else { self.data.get(self.en - 1) }
+    }
+
+    #[must_use]
+    pub fn get(&self, index: usize) -> Option<&V> {
+        self.data.get(self.st + index)
     }
 
     pub fn data_mut(&mut self) -> SeriesGuard<'_, V> {
@@ -131,6 +146,14 @@ impl<V: Clone> SeriesInner<V> {
         );
 
         Self { data: Arc::clone(&self.data), st, en }
+    }
+}
+
+impl<V: Clone> Index<usize> for SeriesInner<V> {
+    type Output = V;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.data[self.st + index]
     }
 }
 

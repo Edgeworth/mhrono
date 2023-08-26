@@ -1,10 +1,10 @@
-use std::collections::btree_set::Range;
 use std::collections::BTreeSet;
+use std::collections::btree_set::Range;
 use std::sync::Arc;
 
 use chrono_tz::Tz;
 
-use crate::date::{ymd, Date};
+use crate::date::{Date, ymd};
 use crate::iter::DateIter;
 use crate::op::SpanOp;
 use crate::span::exc::SpanExc;

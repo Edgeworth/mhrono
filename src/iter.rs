@@ -7,7 +7,7 @@ use crate::time::Time;
 
 #[must_use]
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Display, Serialize, Deserialize)]
-#[display(fmt = "[{t}, {en:?})")]
+#[display("[{t}, {en:?})")]
 pub struct TimeIter {
     t: Time,
     en: Time,
@@ -26,18 +26,14 @@ impl Iterator for TimeIter {
     fn next(&mut self) -> Option<Self::Item> {
         let t = self.t;
         self.t = self.op.apply(t);
-        if self.t >= self.en {
-            None
-        } else {
-            Some(self.t)
-        }
+        if self.t >= self.en { None } else { Some(self.t) }
     }
 }
 
 // Date iterator that is exclusive (doesn't include the endpoint).
 #[must_use]
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Display, Serialize, Deserialize)]
-#[display(fmt = "[{d}, {en:?})")]
+#[display("[{d}, {en:?})")]
 pub struct DateIter {
     d: Date,
     en: Date,
@@ -60,10 +56,6 @@ impl Iterator for DateIter {
     fn next(&mut self) -> Option<Self::Item> {
         let d = self.d;
         self.d = self.op.apply(d);
-        if d >= self.en {
-            None
-        } else {
-            Some(d)
-        }
+        if d >= self.en { None } else { Some(d) }
     }
 }

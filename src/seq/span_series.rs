@@ -58,7 +58,7 @@ impl<X: PartialOrd + Copy + std::fmt::Display, Y: Clone> Series for SpanExcSerie
 
     fn unchecked_push(&mut self, elt: Self::V) -> Result<bool> {
         let needs_sort =
-            if let Some(last) = self.last() { Self::x(last) >= Self::x(&elt) } else { false };
+            if let Some(last) = self.last() { Self::x(last) > Self::x(&elt) } else { false };
         self.inner.push(elt);
         Ok(needs_sort)
     }
@@ -123,7 +123,6 @@ impl<X: PartialOrd + Copy + std::fmt::Display + EndpointConversion, Y: Clone> Se
 
 #[cfg(test)]
 mod tests {
-    use eyre::Result;
     use pretty_assertions::assert_eq;
 
     use super::*;

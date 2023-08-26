@@ -6,7 +6,7 @@ use auto_ops::impl_op_ex;
 use chrono::{DateTime, Datelike, LocalResult, NaiveDate, NaiveDateTime, TimeZone, Timelike, Utc};
 use chrono_tz::{Tz, UTC};
 use derive_more::Display;
-use eyre::{eyre, Result};
+use eyre::{Result, eyre};
 use num_traits::ToPrimitive;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
@@ -34,14 +34,14 @@ pub fn ymdhms<T: Borrow<Tz>>(
 /// times with different timezones can compare as the same.
 #[must_use]
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Display, Ord, PartialOrd)]
-#[display(fmt = "{t}")]
+#[display("{t}")]
 pub struct Time {
     t: DateTime<Tz>,
 }
 
 /// Creation
 impl Time {
-    pub const LOCAL_FMT: &str = "%Y-%m-%dT%H:%M:%S%.f";
+    pub const LOCAL_FMT: &'static str = "%Y-%m-%dT%H:%M:%S%.f";
 
     pub const fn new(t: DateTime<Tz>) -> Self {
         Self { t }
@@ -60,7 +60,7 @@ impl Time {
     }
 
     pub fn from_utc_timestamp(utc_secs: i64, utc_nanos: u32, tz: Tz) -> Self {
-        tz.from_utc_datetime(&NaiveDateTime::from_timestamp_opt(utc_secs, utc_nanos).unwrap())
+        tz.from_utc_datetime(&DateTime::from_timestamp(utc_secs, utc_nanos).unwrap().naive_utc())
             .into()
     }
 
@@ -248,11 +248,11 @@ impl Time {
                     // always stays the same. This isn't perfect but whatever.
                     return Self::new(if min.offset() == self.t.offset() { min } else { max });
                 }
-            };
+            }
             // Add a minute until we get past the non-existent block of time.
             // This can happen when a daylight savings adjustment leaves a gap.
             // Assumes timezones only ever differ by whole minute amounts.
-            t += chrono::Duration::minutes(1);
+            t += chrono::Duration::try_minutes(1).unwrap();
             t = t.with_second(0).unwrap();
         }
     }
@@ -278,7 +278,7 @@ impl Time {
     }
 
     pub fn add_millis(&self, ms: i64) -> Self {
-        (self.t + chrono::Duration::milliseconds(ms)).into()
+        (self.t + chrono::Duration::try_milliseconds(ms).unwrap()).into()
     }
 
     pub fn with_sec(&self, s: u32) -> Self {
@@ -286,7 +286,7 @@ impl Time {
     }
 
     pub fn add_secs(&self, secs: i64) -> Self {
-        (self.t + chrono::Duration::seconds(secs)).into()
+        (self.t + chrono::Duration::try_seconds(secs).unwrap()).into()
     }
 
     pub fn with_min(&self, m: u32) -> Self {
@@ -294,7 +294,7 @@ impl Time {
     }
 
     pub fn add_mins(&self, mins: i64) -> Self {
-        (self.t + chrono::Duration::minutes(mins)).into()
+        (self.t + chrono::Duration::try_minutes(mins).unwrap()).into()
     }
 
     pub fn with_hour(&self, h: u32) -> Self {
@@ -302,7 +302,7 @@ impl Time {
     }
 
     pub fn add_hours(&self, h: i64) -> Self {
-        (self.t + chrono::Duration::hours(h)).into()
+        (self.t + chrono::Duration::try_hours(h).unwrap()).into()
     }
 
     pub fn with_day(&self, d: u32) -> Self {
@@ -432,7 +432,6 @@ mod tests {
     use chrono_tz::Australia::Sydney;
     use chrono_tz::US::Eastern;
     use pretty_assertions::assert_eq;
-    use NaiveDateTime;
 
     use super::*;
     use crate::date::ymd;

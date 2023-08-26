@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 use chrono_tz::US::Eastern;
 
 use crate::calendars::calendar::DaySet;
-use crate::date::{ymd, Date, Day};
+use crate::date::{Date, Day, ymd};
 use crate::iter::DateIter;
 use crate::op::DateOp;
 
@@ -27,11 +27,7 @@ fn nearest_workday(d: Date) -> Option<Date> {
 }
 
 fn next_tuesday_every_four_years(d: Date) -> Option<Date> {
-    if d.year() % 4 == 0 {
-        Some(DateOp::find_tue(1).apply(d))
-    } else {
-        None
-    }
+    if d.year() % 4 == 0 { Some(DateOp::find_tue(1).apply(d)) } else { None }
 }
 
 #[allow(clippy::unnecessary_wraps)]
