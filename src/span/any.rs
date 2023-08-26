@@ -153,29 +153,17 @@ impl<T: EndpointConversion + Copy> SpanAny<T> {
 
     #[must_use]
     pub fn to_range_from(&self) -> Option<RangeFrom<T>> {
-        if self.en.is_unbounded() {
-            Some(self.st.to_closed()?..)
-        } else {
-            None
-        }
+        if self.en.is_unbounded() { Some(self.st.to_closed()?..) } else { None }
     }
 
     #[must_use]
     pub fn to_range_to(&self) -> Option<RangeTo<T>> {
-        if self.st.is_unbounded() {
-            Some(..self.en.to_open()?)
-        } else {
-            None
-        }
+        if self.st.is_unbounded() { Some(..self.en.to_open()?) } else { None }
     }
 
     #[must_use]
     pub fn to_range_to_inclusive(&self) -> Option<RangeToInclusive<T>> {
-        if self.st.is_unbounded() {
-            Some(..=self.en.to_closed()?)
-        } else {
-            None
-        }
+        if self.st.is_unbounded() { Some(..=self.en.to_closed()?) } else { None }
     }
 }
 
@@ -204,11 +192,7 @@ impl<T: PartialOrd + Copy> SpanAny<T> {
     #[must_use]
     pub fn intersect(&self, s: &Self) -> Option<Self> {
         let span = Self::new(pmax(&self.st, &s.st), pmin(&self.en, &s.en));
-        if span.is_empty() {
-            None
-        } else {
-            Some(span)
-        }
+        if span.is_empty() { None } else { Some(span) }
     }
 }
 

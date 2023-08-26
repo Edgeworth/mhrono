@@ -10,7 +10,7 @@ use num_traits::ToPrimitive;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use serde::de::{self, Visitor};
-use serde::{ser, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, ser};
 
 use crate::cycles::Cycles;
 use crate::duration::Duration;
@@ -18,7 +18,7 @@ use crate::duration::Duration;
 /// Number of times something happens in a second. Hertz.
 #[must_use]
 #[derive(Debug, Eq, Copy, Clone, Display)]
-#[display(fmt = "{}", "self.human().unwrap_or_else(|_| format!(\"{}:{}\", self.num, self.denom))")]
+#[display("{}", self.human().unwrap_or_else(|_| format!("{}:{}", self.num, self.denom)))]
 pub struct FixedFreq {
     /// Rational-like representation so that we can accurately represent ratios.
     /// Represents number of cycles per duration.
@@ -103,11 +103,7 @@ impl FixedFreq {
 
     pub fn human_bases(&self, bases: &[(&str, Duration)]) -> Result<String> {
         let dur_human = Duration::new(self.denom).human_bases(bases)?;
-        if self.num == dec!(1) {
-            Ok(dur_human)
-        } else {
-            Ok(format!("{}:{dur_human}", self.num))
-        }
+        if self.num == dec!(1) { Ok(dur_human) } else { Ok(format!("{}:{dur_human}", self.num)) }
     }
 
     pub fn from_human(human: &str) -> Result<Self> {

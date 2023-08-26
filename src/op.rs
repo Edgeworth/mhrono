@@ -434,35 +434,19 @@ fn apply_dop(d: Date, op: DOp, n: i64) -> Date {
         DOp::AddDays => d.add_days(n as i32),
         DOp::AdvDay => {
             let n = d.with_day(n as u32);
-            if n <= d {
-                n.add_months(1)
-            } else {
-                n
-            }
+            if n <= d { n.add_months(1) } else { n }
         }
         DOp::AdvMonth => {
             let n = d.with_month(n as u32);
-            if n <= d {
-                n.add_years(1)
-            } else {
-                n
-            }
+            if n <= d { n.add_years(1) } else { n }
         }
         DOp::FindDay => {
             let n = d.with_day(n as u32);
-            if n < d {
-                n.add_months(1)
-            } else {
-                n
-            }
+            if n < d { n.add_months(1) } else { n }
         }
         DOp::FindMonth => {
             let n = d.with_month(n as u32);
-            if n < d {
-                n.add_years(1)
-            } else {
-                n
-            }
+            if n < d { n.add_years(1) } else { n }
         }
         _ if (DOp::AdvMon..=DOp::AdvSun).contains(&op) => {
             let offset = (op as i32 - DOp::AdvMon as i32 - d.weekday() as i32).rem_euclid(7);

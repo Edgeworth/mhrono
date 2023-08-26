@@ -67,7 +67,6 @@ series_ops!(ScalarSeries<X, Y>; X: PartialOrd + Copy + std::fmt::Display, Y: Clo
 
 #[cfg(test)]
 mod tests {
-    use eyre::Result;
     use pretty_assertions::assert_eq;
 
     use super::*;

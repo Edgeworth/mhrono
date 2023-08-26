@@ -2,7 +2,7 @@
 authors = ["Eliot Courtney <edgeworth.dev@gmail.com>"]
 categories = ["date-and-time"]
 description = "time/date/calendar/timeseries library"
-edition = "2021"
+edition = "2024"
 keywords = ["calendar", "time", "chrono"]
 license = "MIT OR Apache-2.0"
 name = "mhrono"
@@ -11,24 +11,24 @@ version = "0.1.0"
 
 [dependencies]
 auto_ops = "0.3.0"
-chrono = {version = "0.4.26", features = ["serde"]}
-chrono-tz = {version = "0.8.3", features = ["serde"]}
-derive_more = "0.99.17"
-eyre = "0.6.8"
-num-derive = "0.4.0"
-num-traits = "0.2.16"
-rand = "0.8.5"
-regex = "1.9.1"
-rust_decimal = {version = "1.31.0", features = ["std"]}
-rust_decimal_macros = "1.31.0"
-serde = {version = "1.0.180", features = ["derive"]}
-strum = {version = "0.25.0", features = ["derive"]}
+chrono = {version = "0.4.39", features = ["serde"]}
+chrono-tz = {version = "0.10.1", features = ["serde"]}
+derive_more = {version = "2.0.1", features = ["display", "is_variant"]}
+eyre = "0.6.12"
+num-derive = "0.4.2"
+num-traits = "0.2.19"
+rand = "0.9.0"
+regex = "1.11.1"
+rust_decimal = {version = "1.36.0", features = ["std"]}
+rust_decimal_macros = "1.36.0"
+serde = {version = "1.0.218", features = ["derive"]}
+strum = {version = "0.27.1", features = ["derive"]}
 
 [dev-dependencies]
 criterion = {version = "0.5.1", features = ["real_blackbox", "html_reports"]}
 moldenfile = {version = "0.1.0", git = "https://github.com/Edgeworth/moldenfile"}
-pretty_assertions = "1.4.0"
-serde_json = "1.0.104"
+pretty_assertions = "1.4.1"
+serde_json = "1.0.139"
 
 [[bench]]
 harness = false

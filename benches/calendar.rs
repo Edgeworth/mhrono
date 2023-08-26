@@ -1,6 +1,6 @@
 use chrono_tz::US::Eastern;
 use criterion::{
-    black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, Throughput,
+    BatchSize, BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main,
 };
 use mhrono::calendars::nyse::get_nyse;
 use mhrono::date::ymd;

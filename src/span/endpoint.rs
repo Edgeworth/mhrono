@@ -285,19 +285,11 @@ const ULP: Decimal = Decimal::from_parts(1, 0, 0, false, 0);
 
 impl EndpointConversion for Decimal {
     fn to_open(&self, left: bool) -> Option<Self> {
-        if left {
-            self.checked_sub(ULP)
-        } else {
-            self.checked_add(ULP)
-        }
+        if left { self.checked_sub(ULP) } else { self.checked_add(ULP) }
     }
 
     fn to_closed(&self, left: bool) -> Option<Self> {
-        if left {
-            self.checked_add(ULP)
-        } else {
-            self.checked_sub(ULP)
-        }
+        if left { self.checked_add(ULP) } else { self.checked_sub(ULP) }
     }
 }
 

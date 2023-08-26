@@ -79,6 +79,11 @@ pub trait Series {
         self.inner().slice()
     }
 
+    fn retain(&mut self, f: impl FnMut(&Self::V) -> bool) {
+        // No need to normalize since this retains order.
+        self.inner_mut().data_mut().retain(f);
+    }
+
     #[must_use]
     fn len(&self) -> usize {
         self.slice().len()
@@ -129,11 +134,7 @@ pub trait Series {
     fn upper_bound_idx(&self, x: Self::X) -> Option<usize> {
         let data = &self.slice();
         let idx = data.partition_point(|v| x >= Self::x(v));
-        if idx < data.len() {
-            Some(idx)
-        } else {
-            None
-        }
+        if idx < data.len() { Some(idx) } else { None }
     }
 
     /// Find the first thing not less than |x|
@@ -141,11 +142,7 @@ pub trait Series {
         let data = &self.slice();
         let idx = data.partition_point(|v| Self::x(v) < x);
 
-        if idx < data.len() {
-            Some(idx)
-        } else {
-            None
-        }
+        if idx < data.len() { Some(idx) } else { None }
     }
 
     /// Find the first thing not less than |x| (>= x).
@@ -168,11 +165,7 @@ pub trait Series {
     fn span_before_idx(&self, x: Self::X) -> Option<usize> {
         let idx = self.lower_bound_idx(x).unwrap_or(self.len() - 1);
 
-        if Self::span_of(self.get(idx)?).en >= x {
-            idx.checked_sub(1)
-        } else {
-            Some(idx)
-        }
+        if Self::span_of(self.get(idx)?).en >= x { idx.checked_sub(1) } else { Some(idx) }
     }
 
     /// Lookup the last record which comes before |x|.
@@ -187,11 +180,7 @@ pub trait Series {
     fn span_at_or_before_idx(&self, x: Self::X) -> Option<usize> {
         let idx = self.upper_bound_idx(x).unwrap_or(self.len() - 1);
 
-        if Self::span_of(self.get(idx)?).st <= x {
-            Some(idx)
-        } else {
-            idx.checked_sub(1)
-        }
+        if Self::span_of(self.get(idx)?).st <= x { Some(idx) } else { idx.checked_sub(1) }
     }
 
     /// Lookup the last record which contains |x|. If no such record exists,
@@ -350,6 +339,7 @@ macro_rules! series_ops {
             }
         }
 
+        #[allow(clippy::into_iter_without_iter)]
         impl<'a, $($bounds)*> IntoIterator for &'a $t where $t: Series {
             type Item = &'a <$t as Series>::V;
             type IntoIter = std::slice::Iter<'a, <$t as Series>::V>;

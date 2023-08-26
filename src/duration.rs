@@ -5,20 +5,20 @@ use std::str::FromStr;
 
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 use derive_more::Display;
-use eyre::{eyre, Result};
+use eyre::{Result, eyre};
 use num_traits::ToPrimitive;
-use rand::distributions::uniform::{SampleBorrow, SampleUniform, UniformFloat, UniformSampler};
+use rand::distr::uniform::{SampleBorrow, SampleUniform, UniformFloat, UniformSampler};
 use rand::prelude::*;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use serde::de::{self, Visitor};
-use serde::{ser, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, ser};
 
 use crate::span::endpoint::EndpointConversion;
 
 #[must_use]
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Display, Ord, PartialOrd)]
-#[display(fmt = "{}", "self.human().unwrap_or_else(|_| self.secs.to_string())")]
+#[display("{}", self.human().unwrap_or_else(|_| self.secs.to_string()))]
 pub struct Duration {
     secs: Decimal,
 }
@@ -36,7 +36,7 @@ impl Duration {
     pub const DAY: Duration = Duration::new(dec!(86400));
     pub const WEEK: Duration = Duration::new(dec!(604800));
 
-    pub const BASES: &[(&'static str, Duration)] = &[
+    pub const BASES: &'static [(&'static str, Duration)] = &[
         ("w", Duration::WEEK),
         ("d", Duration::DAY),
         ("h", Duration::HOUR),
@@ -95,11 +95,7 @@ impl Duration {
             }
         }
         // Some sub-attosecond duration...
-        if rem.is_zero() {
-            Ok(human)
-        } else {
-            Err(eyre!("remainder is not zero"))
-        }
+        if rem.is_zero() { Ok(human) } else { Err(eyre!("remainder is not zero")) }
     }
 
     pub fn from_human(s: &str) -> Result<Duration> {
@@ -187,23 +183,26 @@ pub struct UniformDuration(UniformFloat<f64>);
 impl UniformSampler for UniformDuration {
     type X = Duration;
 
-    fn new<B1, B2>(low: B1, high: B2) -> Self
+    fn new<B1, B2>(low: B1, high: B2) -> Result<Self, rand::distr::uniform::Error>
     where
         B1: SampleBorrow<Self::X> + Sized,
         B2: SampleBorrow<Self::X> + Sized,
     {
-        UniformDuration(UniformFloat::<f64>::new(low.borrow().secs_f64(), high.borrow().secs_f64()))
-    }
-
-    fn new_inclusive<B1, B2>(low: B1, high: B2) -> Self
-    where
-        B1: SampleBorrow<Self::X> + Sized,
-        B2: SampleBorrow<Self::X> + Sized,
-    {
-        UniformDuration(UniformFloat::<f64>::new_inclusive(
+        Ok(UniformDuration(UniformFloat::<f64>::new(
             low.borrow().secs_f64(),
             high.borrow().secs_f64(),
-        ))
+        )?))
+    }
+
+    fn new_inclusive<B1, B2>(low: B1, high: B2) -> Result<Self, rand::distr::uniform::Error>
+    where
+        B1: SampleBorrow<Self::X> + Sized,
+        B2: SampleBorrow<Self::X> + Sized,
+    {
+        Ok(UniformDuration(UniformFloat::<f64>::new_inclusive(
+            low.borrow().secs_f64(),
+            high.borrow().secs_f64(),
+        )?))
     }
 
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Self::X {

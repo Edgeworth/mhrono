@@ -5,7 +5,7 @@ use std::str::FromStr;
 
 use chrono::{Datelike, Month, NaiveDate, TimeZone};
 use chrono_tz::{Tz, UTC};
-use eyre::{eyre, Result};
+use eyre::{Result, eyre};
 use num_traits::FromPrimitive;
 use serde::de::{self, Visitor};
 use serde::{Deserialize, Serialize};
@@ -21,6 +21,7 @@ pub fn ymd<T: Borrow<Tz>>(y: i32, m: u32, d: u32, tz: T) -> Date {
 #[must_use]
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Ord, PartialOrd, Serialize, Deserialize)]
 pub enum Day {
+    // This is the same as python datetime.weekday() and pandas.
     Mon = 0,
     Tue = 1,
     Wed = 2,
@@ -132,7 +133,7 @@ impl Date {
     }
 
     pub fn add_days(&self, d: i32) -> Self {
-        Self::new(self.d + chrono::Duration::days(i64::from(d)), self.tz())
+        Self::new(self.d + chrono::Duration::try_days(i64::from(d)).unwrap(), self.tz())
     }
 
     pub fn weekday(&self) -> Day {
