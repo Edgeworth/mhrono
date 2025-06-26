@@ -1,7 +1,7 @@
+use std::hint::black_box;
+
 use chrono_tz::US::Eastern;
-use criterion::{
-    BatchSize, BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main,
-};
+use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use mhrono::calendars::nyse::get_nyse;
 use mhrono::date::ymd;
 use mhrono::iter::DateIter;

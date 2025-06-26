@@ -121,10 +121,10 @@ impl Calendar {
         let mut t = t.with_tz(self.tz);
         loop {
             let d = t.date();
-            if !self.cache.contains(d, &mut RangerUnion::new(&mut self.hols)) {
-                if let Some(s) = self.next_span_in_day(d, &t) {
-                    return Some(s);
-                }
+            if !self.cache.contains(d, &mut RangerUnion::new(&mut self.hols))
+                && let Some(s) = self.next_span_in_day(d, &t)
+            {
+                return Some(s);
             }
             // Use given time of day on the first iteration, but start from
             // midnight on subsequent iterations.
@@ -232,10 +232,10 @@ impl UncachedDaySet {
     fn iter_span(&mut self, s: SpanExc<Date>, iter: DateIter, v: &mut BTreeSet<Date>) {
         for cursor in iter {
             let d = self.observance.as_ref().map_or(Some(cursor), |f| f(cursor));
-            if let Some(d) = d {
-                if s.contains(&d) {
-                    v.insert(d);
-                }
+            if let Some(d) = d
+                && s.contains(&d)
+            {
+                v.insert(d);
             }
         }
     }
