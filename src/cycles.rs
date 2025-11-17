@@ -91,3 +91,188 @@ impl EndpointConversion for Cycles {
         self.count.to_closed(left).map(Self::new)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+    use rust_decimal_macros::dec;
+
+    use super::*;
+
+    #[test]
+    fn test_new_and_accessors() {
+        let c = Cycles::new(dec!(5));
+        assert_eq!(c.count(), dec!(5));
+
+        let c = Cycles::zero();
+        assert_eq!(c.count(), dec!(0));
+
+        let c = Cycles::one();
+        assert_eq!(c.count(), dec!(1));
+
+        let c = Cycles::from_count(42);
+        assert_eq!(c.count(), dec!(42));
+    }
+
+    #[test]
+    fn test_addition() {
+        let a = Cycles::new(dec!(3));
+        let b = Cycles::new(dec!(5));
+        let c = a + b;
+        assert_eq!(c.count(), dec!(8));
+
+        let mut a = Cycles::new(dec!(10));
+        a += Cycles::new(dec!(5));
+        assert_eq!(a.count(), dec!(15));
+    }
+
+    #[test]
+    fn test_subtraction() {
+        let a = Cycles::new(dec!(10));
+        let b = Cycles::new(dec!(3));
+        let c = a - b;
+        assert_eq!(c.count(), dec!(7));
+
+        let mut a = Cycles::new(dec!(10));
+        a -= Cycles::new(dec!(3));
+        assert_eq!(a.count(), dec!(7));
+    }
+
+    #[test]
+    fn test_division() {
+        let a = Cycles::new(dec!(10));
+        let b = Cycles::new(dec!(2));
+        let result = a / b;
+        assert_eq!(result, dec!(5));
+    }
+
+    #[test]
+    fn test_multiplication_with_i64() {
+        let c = Cycles::new(dec!(5));
+        let result = c * 3_i64;
+        assert_eq!(result.count(), dec!(15));
+
+        let result = 3_i64 * c;
+        assert_eq!(result.count(), dec!(15));
+
+        let mut c = Cycles::new(dec!(5));
+        c *= 3_i64;
+        assert_eq!(c.count(), dec!(15));
+    }
+
+    #[test]
+    fn test_division_with_i64() {
+        let c = Cycles::new(dec!(15));
+        let result = c / 3_i64;
+        assert_eq!(result.count(), dec!(5));
+
+        let mut c = Cycles::new(dec!(15));
+        c /= 3_i64;
+        assert_eq!(c.count(), dec!(5));
+    }
+
+    #[test]
+    fn test_multiplication_with_decimal() {
+        let c = Cycles::new(dec!(5));
+        let result = c * dec!(2.5);
+        assert_eq!(result.count(), dec!(12.5));
+
+        let result = dec!(2.5) * c;
+        assert_eq!(result.count(), dec!(12.5));
+    }
+
+    #[test]
+    fn test_cycles_duration_ops() {
+        let c = Cycles::new(dec!(10));
+        let d = Duration::SEC;
+        let result = c * d;
+        assert_eq!(result, Duration::new(dec!(10)));
+
+        let result = d * c;
+        assert_eq!(result, Duration::new(dec!(10)));
+    }
+
+    #[test]
+    fn test_cycles_divide_duration() {
+        let c = Cycles::new(dec!(10));
+        let d = Duration::SEC;
+        let freq = c / d;
+        assert_eq!(freq.hz(), dec!(10));
+    }
+
+    #[test]
+    fn test_ordering() {
+        let a = Cycles::new(dec!(5));
+        let b = Cycles::new(dec!(10));
+        let c = Cycles::new(dec!(5));
+
+        assert!(a < b);
+        assert!(b > a);
+        assert_eq!(a, c);
+        assert!(a <= c);
+        assert!(a >= c);
+    }
+
+    #[test]
+    fn test_to_primitive() {
+        let c = Cycles::new(dec!(42));
+        assert_eq!(c.to_i64(), Some(42));
+        assert_eq!(c.to_u64(), Some(42));
+        assert_eq!(c.to_f64(), Some(42.0));
+
+        let c = Cycles::new(dec!(42.5));
+        assert_eq!(c.to_f64(), Some(42.5));
+    }
+
+    #[test]
+    fn test_endpoint_conversion() {
+        let c = Cycles::new(dec!(5));
+
+        // Left endpoint to open should subtract 1
+        let left_open = c.to_open(true).unwrap();
+        assert_eq!(left_open.count(), dec!(4));
+
+        // Right endpoint to open should add 1
+        let right_open = c.to_open(false).unwrap();
+        assert_eq!(right_open.count(), dec!(6));
+
+        // Left endpoint to closed should add 1
+        let left_closed = c.to_closed(true).unwrap();
+        assert_eq!(left_closed.count(), dec!(6));
+
+        // Right endpoint to closed should subtract 1
+        let right_closed = c.to_closed(false).unwrap();
+        assert_eq!(right_closed.count(), dec!(4));
+    }
+
+    #[test]
+    fn test_display() {
+        let c = Cycles::new(dec!(42));
+        assert_eq!(format!("{}", c), "42");
+
+        let c = Cycles::new(dec!(3.14));
+        assert_eq!(format!("{}", c), "3.14");
+    }
+
+    #[test]
+    fn test_zero_cycles() {
+        let zero = Cycles::zero();
+        let non_zero = Cycles::new(dec!(5));
+
+        assert_eq!(zero + non_zero, non_zero);
+        assert_eq!(non_zero + zero, non_zero);
+        assert_eq!(non_zero - zero, non_zero);
+    }
+
+    #[test]
+    fn test_negative_cycles() {
+        let pos = Cycles::new(dec!(5));
+        let neg = Cycles::new(dec!(-3));
+
+        let result = pos + neg;
+        assert_eq!(result.count(), dec!(2));
+
+        let result = neg - pos;
+        assert_eq!(result.count(), dec!(-8));
+    }
+}
