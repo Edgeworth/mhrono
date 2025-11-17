@@ -330,4 +330,189 @@ mod tests {
         assert_eq!(de, dur);
         Ok(())
     }
+
+    #[test]
+    fn test_constants() {
+        assert_eq!(Duration::ASEC.secs(), dec!(0.000000000000000001));
+        assert_eq!(Duration::FSEC.secs(), dec!(0.000000000000001));
+        assert_eq!(Duration::PSEC.secs(), dec!(0.000000000001));
+        assert_eq!(Duration::NSEC.secs(), dec!(0.000000001));
+        assert_eq!(Duration::USEC.secs(), dec!(0.000001));
+        assert_eq!(Duration::MSEC.secs(), dec!(0.001));
+        assert_eq!(Duration::SEC.secs(), dec!(1));
+        assert_eq!(Duration::MIN.secs(), dec!(60));
+        assert_eq!(Duration::HOUR.secs(), dec!(3600));
+        assert_eq!(Duration::DAY.secs(), dec!(86400));
+        assert_eq!(Duration::WEEK.secs(), dec!(604800));
+    }
+
+    #[test]
+    fn test_new_and_zero() {
+        let d = Duration::new(dec!(42.5));
+        assert_eq!(d.secs(), dec!(42.5));
+
+        let z = Duration::zero();
+        assert_eq!(z.secs(), dec!(0));
+        assert!(z.is_zero());
+
+        let d = Duration::default();
+        assert_eq!(d.secs(), dec!(0));
+        assert!(d.is_zero());
+    }
+
+    #[test]
+    fn test_addition() {
+        let a = Duration::SEC;
+        let b = Duration::MSEC;
+        let c = a + b;
+        assert_eq!(c.secs(), dec!(1.001));
+
+        let mut a = Duration::SEC;
+        a += Duration::MSEC;
+        assert_eq!(a.secs(), dec!(1.001));
+    }
+
+    #[test]
+    fn test_subtraction() {
+        let a = Duration::SEC;
+        let b = Duration::MSEC;
+        let c = a - b;
+        assert_eq!(c.secs(), dec!(0.999));
+
+        let mut a = Duration::SEC;
+        a -= Duration::MSEC;
+        assert_eq!(a.secs(), dec!(0.999));
+    }
+
+    #[test]
+    fn test_division() {
+        let a = Duration::MIN;
+        let b = Duration::SEC;
+        let ratio = a / b;
+        assert_eq!(ratio, dec!(60));
+    }
+
+    #[test]
+    fn test_multiplication_with_i64() {
+        let d = Duration::SEC;
+        let result = d * 5_i64;
+        assert_eq!(result.secs(), dec!(5));
+
+        let result = 5_i64 * d;
+        assert_eq!(result.secs(), dec!(5));
+    }
+
+    #[test]
+    fn test_multiplication_with_decimal() {
+        let d = Duration::SEC;
+        let result = d * dec!(2.5);
+        assert_eq!(result.secs(), dec!(2.5));
+
+        let result = dec!(2.5) * d;
+        assert_eq!(result.secs(), dec!(2.5));
+    }
+
+    #[test]
+    fn test_division_with_decimal() {
+        let d = Duration::new(dec!(10));
+        let result = d / dec!(2);
+        assert_eq!(result.secs(), dec!(5));
+    }
+
+    #[test]
+    fn test_ordering() {
+        let a = Duration::SEC;
+        let b = Duration::MIN;
+        let c = Duration::SEC;
+
+        assert!(a < b);
+        assert!(b > a);
+        assert_eq!(a, c);
+        assert!(a <= c);
+        assert!(a >= c);
+    }
+
+    #[test]
+    fn test_secs_f64() {
+        let d = Duration::new(dec!(42.5));
+        assert_eq!(d.secs_f64(), 42.5);
+    }
+
+    #[test]
+    fn test_to_chrono() {
+        let d = Duration::new(dec!(1.5));
+        let chrono_dur = d.to_chrono();
+        assert_eq!(chrono_dur.as_secs(), 1);
+        assert_eq!(chrono_dur.subsec_nanos(), 500_000_000);
+
+        let d = Duration::SEC;
+        let chrono_dur = d.to_chrono();
+        assert_eq!(chrono_dur.as_secs(), 1);
+        assert_eq!(chrono_dur.subsec_nanos(), 0);
+    }
+
+    #[test]
+    fn test_arithmetic_operations() {
+        let one_min = Duration::MIN;
+        let thirty_sec = Duration::SEC * 30;
+
+        let sum = one_min + thirty_sec;
+        assert_eq!(sum.secs(), dec!(90));
+
+        let diff = one_min - thirty_sec;
+        assert_eq!(diff.secs(), dec!(30));
+    }
+
+    #[test]
+    fn test_zero_duration() {
+        let zero = Duration::zero();
+        let one_sec = Duration::SEC;
+
+        assert_eq!(zero + one_sec, one_sec);
+        assert_eq!(one_sec + zero, one_sec);
+        assert_eq!(one_sec - zero, one_sec);
+        assert_eq!(zero * 100, zero);
+    }
+
+    #[test]
+    fn test_display() {
+        assert_eq!(format!("{}", Duration::SEC), "1s");
+        assert_eq!(format!("{}", Duration::MIN), "1m");
+        assert_eq!(format!("{}", Duration::HOUR), "1h");
+        assert_eq!(format!("{}", Duration::DAY), "1d");
+    }
+
+    #[test]
+    fn test_complex_durations() {
+        let complex = Duration::HOUR * 2 + Duration::MIN * 30 + Duration::SEC * 45;
+        assert_eq!(complex.secs(), dec!(9045)); // 2*3600 + 30*60 + 45 = 9045
+    }
+
+    #[test]
+    fn test_endpoint_conversion() {
+        let d = Duration::SEC;
+
+        // Left endpoint to open should subtract ULP
+        let left_open = d.to_open(true).unwrap();
+        assert!(left_open.secs() < d.secs());
+
+        // Right endpoint to open should add ULP
+        let right_open = d.to_open(false).unwrap();
+        assert!(right_open.secs() > d.secs());
+
+        // Left endpoint to closed should add ULP
+        let left_closed = d.to_closed(true).unwrap();
+        assert!(left_closed.secs() > d.secs());
+
+        // Right endpoint to closed should subtract ULP
+        let right_closed = d.to_closed(false).unwrap();
+        assert!(right_closed.secs() < d.secs());
+    }
+
+    #[test]
+    fn test_from_human_errors() {
+        assert!(Duration::from_human("").is_err());
+        assert!(Duration::from_human("xyz").is_err());
+        assert!(Duration::from_human("1xyz").is_err());
+    }
 }
