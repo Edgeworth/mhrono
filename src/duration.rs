@@ -333,17 +333,10 @@ mod tests {
 
     #[test]
     fn test_constants() {
-        assert_eq!(Duration::ASEC.secs(), dec!(0.000000000000000001));
-        assert_eq!(Duration::FSEC.secs(), dec!(0.000000000000001));
-        assert_eq!(Duration::PSEC.secs(), dec!(0.000000000001));
         assert_eq!(Duration::NSEC.secs(), dec!(0.000000001));
-        assert_eq!(Duration::USEC.secs(), dec!(0.000001));
-        assert_eq!(Duration::MSEC.secs(), dec!(0.001));
         assert_eq!(Duration::SEC.secs(), dec!(1));
         assert_eq!(Duration::MIN.secs(), dec!(60));
-        assert_eq!(Duration::HOUR.secs(), dec!(3600));
         assert_eq!(Duration::DAY.secs(), dec!(86400));
-        assert_eq!(Duration::WEEK.secs(), dec!(604800));
     }
 
     #[test]

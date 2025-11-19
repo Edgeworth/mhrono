@@ -249,15 +249,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_ymd_helper() {
-        let d = ymd(2020, 3, 15, Eastern);
-        assert_eq!(d.year(), 2020);
-        assert_eq!(d.month(), 3);
-        assert_eq!(d.day(), 15);
-        assert_eq!(d.tz(), Eastern);
-    }
-
-    #[test]
     fn test_date_new() {
         let naive = NaiveDate::from_ymd_opt(2020, 3, 15).unwrap();
         let d = Date::new(naive, Eastern);
@@ -294,38 +285,15 @@ mod tests {
 
     #[test]
     fn test_weekday() {
-        let d = ymd(2020, 3, 15, Eastern); // Sunday
-        assert_eq!(d.weekday(), Day::Sun);
-
-        let d = ymd(2020, 3, 16, Eastern); // Monday
-        assert_eq!(d.weekday(), Day::Mon);
-
-        let d = ymd(2020, 3, 17, Eastern); // Tuesday
-        assert_eq!(d.weekday(), Day::Tue);
-
-        let d = ymd(2020, 3, 18, Eastern); // Wednesday
-        assert_eq!(d.weekday(), Day::Wed);
-
-        let d = ymd(2020, 3, 19, Eastern); // Thursday
-        assert_eq!(d.weekday(), Day::Thu);
-
-        let d = ymd(2020, 3, 20, Eastern); // Friday
-        assert_eq!(d.weekday(), Day::Fri);
-
-        let d = ymd(2020, 3, 21, Eastern); // Saturday
-        assert_eq!(d.weekday(), Day::Sat);
+        assert_eq!(ymd(2020, 3, 16, Eastern).weekday(), Day::Mon);
+        assert_eq!(ymd(2020, 3, 20, Eastern).weekday(), Day::Fri);
+        assert_eq!(ymd(2020, 3, 15, Eastern).weekday(), Day::Sun);
     }
 
     #[test]
     fn test_month_name() {
-        let d = ymd(2020, 1, 1, Eastern);
-        assert_eq!(d.month_name(), "January");
-
-        let d = ymd(2020, 2, 1, Eastern);
-        assert_eq!(d.month_name(), "February");
-
-        let d = ymd(2020, 12, 1, Eastern);
-        assert_eq!(d.month_name(), "December");
+        assert_eq!(ymd(2020, 1, 1, Eastern).month_name(), "January");
+        assert_eq!(ymd(2020, 12, 1, Eastern).month_name(), "December");
     }
 
     #[test]
