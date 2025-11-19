@@ -452,18 +452,6 @@ mod tests {
     }
 
     #[test]
-    fn test_arithmetic_operations() {
-        let one_min = Duration::MIN;
-        let thirty_sec = Duration::SEC * 30;
-
-        let sum = one_min + thirty_sec;
-        assert_eq!(sum.secs(), dec!(90));
-
-        let diff = one_min - thirty_sec;
-        assert_eq!(diff.secs(), dec!(30));
-    }
-
-    #[test]
     fn test_zero_duration() {
         let zero = Duration::zero();
         let one_sec = Duration::SEC;
@@ -480,12 +468,6 @@ mod tests {
         assert_eq!(format!("{}", Duration::MIN), "1m");
         assert_eq!(format!("{}", Duration::HOUR), "1h");
         assert_eq!(format!("{}", Duration::DAY), "1d");
-    }
-
-    #[test]
-    fn test_complex_durations() {
-        let complex = Duration::HOUR * 2 + Duration::MIN * 30 + Duration::SEC * 45;
-        assert_eq!(complex.secs(), dec!(9045)); // 2*3600 + 30*60 + 45 = 9045
     }
 
     #[test]

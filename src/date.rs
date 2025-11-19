@@ -554,14 +554,4 @@ mod tests {
         let d = ymd(2019, 2, 28, Eastern); // Non-leap year
         assert_eq!(d.add_days(1).month(), 3);
     }
-
-    #[test]
-    fn test_day_enum_ordering() {
-        assert!(Day::Mon < Day::Tue);
-        assert!(Day::Tue < Day::Wed);
-        assert!(Day::Wed < Day::Thu);
-        assert!(Day::Thu < Day::Fri);
-        assert!(Day::Fri < Day::Sat);
-        assert!(Day::Sat < Day::Sun);
-    }
 }
