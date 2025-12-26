@@ -41,6 +41,7 @@ pub mod calendars;
 pub mod cycles;
 pub mod date;
 pub mod duration;
+pub mod error;
 pub mod fixed_freq;
 pub mod iter;
 pub mod op;
@@ -48,3 +49,5 @@ pub mod semantic_freq;
 pub mod seq;
 pub mod span;
 pub mod time;
+
+pub use error::{Error, Result};

@@ -6,7 +6,6 @@ use auto_ops::impl_op_ex;
 use chrono::{DateTime, Datelike, LocalResult, NaiveDate, NaiveDateTime, TimeZone, Timelike, Utc};
 use chrono_tz::{Tz, UTC};
 use derive_more::Display;
-use eyre::{Result, eyre};
 use num_traits::ToPrimitive;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
@@ -16,7 +15,8 @@ use serde::{Deserialize, Serialize};
 use crate::date::{Date, Day};
 use crate::duration::Duration;
 use crate::op::{TOp, TimeOp};
-use crate::span::endpoint::EndpointConversion;
+use crate::span::endpoint::{EndpointConversion, EndpointSide};
+use crate::{Error, Result};
 
 pub fn ymdhms<T: Borrow<Tz>>(
     year: i32,
@@ -29,6 +29,9 @@ pub fn ymdhms<T: Borrow<Tz>>(
 ) -> Time {
     Time::new(tz.borrow().with_ymd_and_hms(year, month, day, hour, min, sec).unwrap())
 }
+
+// Chrono allows nanoseconds up to 2 seconds to represent leap second fractions.
+const MAX_NANOSECOND: u32 = 1_999_999_999;
 
 /// Note that hashses and comparisons are based on the underlying time, so two
 /// times with different timezones can compare as the same.
@@ -65,7 +68,7 @@ impl Time {
     }
 
     pub fn from_utc_dec(utc_dec: Decimal, tz: Tz) -> Self {
-        let utc_secs = utc_dec.trunc();
+        let utc_secs = utc_dec.floor();
         let utc_nanos = ((utc_dec - utc_secs) * dec!(1000000000)).trunc();
         Self::from_utc_timestamp(utc_secs.to_i64().unwrap(), utc_nanos.to_u32().unwrap(), tz)
     }
@@ -114,7 +117,7 @@ impl Time {
     /// attach the timezone to it.
     pub fn from_local_datetime(d: NaiveDateTime, tz: Tz) -> Result<Self> {
         let dt = tz.from_local_datetime(&d);
-        let dt = dt.single().ok_or_else(|| eyre!("no single representation for {}", d))?;
+        let dt = dt.single().ok_or_else(|| Error::InvalidLocalDateTime(d.to_string()))?;
         Ok(Self::new(dt))
     }
 
@@ -236,9 +239,8 @@ impl Time {
     /// the next time that does exist.
     pub fn with_date(&self, d: impl Into<NaiveDate>) -> Self {
         let d = d.into();
-        let mut t = self.t.time();
+        let mut localdt = d.and_time(self.t.time());
         loop {
-            let localdt = d.and_time(t);
             let v = self.tz().from_local_datetime(&localdt);
             match v {
                 LocalResult::None => {}
@@ -250,15 +252,15 @@ impl Time {
                 }
             }
             // Add a minute until we get past the non-existent block of time.
-            // This can happen when a daylight savings adjustment leaves a gap.
-            // Assumes timezones only ever differ by whole minute amounts.
-            t += chrono::Duration::try_minutes(1).unwrap();
-            t = t.with_second(0).unwrap();
+            // This can happen when a daylight savings adjustment leaves a gap, or when an entire
+            // local date is skipped (e.g. dateline changes).
+            localdt += chrono::Duration::minutes(1);
+            localdt = localdt.with_second(0).unwrap().with_nanosecond(0).unwrap();
         }
     }
 
     pub fn with_nanos(&self, ns: u32) -> Self {
-        self.t.with_nanosecond(ns).unwrap().into()
+        self.t.with_nanosecond(ns.min(MAX_NANOSECOND)).unwrap().into()
     }
 
     pub fn add_nanos(&self, ns: i64) -> Self {
@@ -266,7 +268,8 @@ impl Time {
     }
 
     pub fn with_micros(&self, us: u32) -> Self {
-        self.t.with_nanosecond(us * 1000).unwrap().into()
+        let ns = u64::from(us) * 1000;
+        self.with_nanos(ns.min(u64::from(MAX_NANOSECOND)) as u32)
     }
 
     pub fn add_micros(&self, us: i64) -> Self {
@@ -274,7 +277,8 @@ impl Time {
     }
 
     pub fn with_millis(&self, ms: u32) -> Self {
-        self.t.with_nanosecond(ms * 1000 * 1000).unwrap().into()
+        let ns = u64::from(ms) * 1000 * 1000;
+        self.with_nanos(ns.min(u64::from(MAX_NANOSECOND)) as u32)
     }
 
     pub fn add_millis(&self, ms: i64) -> Self {
@@ -372,7 +376,7 @@ impl<'a> Deserialize<'a> for Time {
             type Value = Time;
 
             fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                f.write_str("iso8601 string and timezone name")
+                f.write_str("rfc3339 string and timezone name")
             }
 
             fn visit_str<E>(self, v: &str) -> Result<Time, E>
@@ -380,11 +384,10 @@ impl<'a> Deserialize<'a> for Time {
                 E: de::Error,
             {
                 let mut s = v.split_whitespace();
-                let local =
-                    s.next().ok_or_else(|| eyre!("missing timestamp")).map_err(E::custom)?;
-                let tz = s.next().ok_or_else(|| eyre!("missing timezone")).map_err(E::custom)?;
+                let iso = s.next().ok_or_else(|| E::custom("missing timestamp"))?;
+                let tz = s.next().ok_or_else(|| E::custom("missing timezone"))?;
                 let tz = Tz::from_str(tz).map_err(E::custom)?;
-                let time = Time::from_local(local, tz).map_err(E::custom)?;
+                let time = Time::from_local_iso(iso, tz).map_err(E::custom)?;
                 Ok(time)
             }
         }
@@ -395,7 +398,7 @@ impl<'a> Deserialize<'a> for Time {
 
 impl Serialize for Time {
     fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        s.serialize_str(&(self.to_local() + " " + self.tz().name()))
+        s.serialize_str(&(self.to_iso() + " " + self.tz().name()))
     }
 }
 
@@ -414,15 +417,21 @@ impl ToPrimitive for Time {
 }
 
 impl EndpointConversion for Time {
-    fn to_open(&self, left: bool) -> Option<Self> {
+    fn to_open(&self, side: EndpointSide) -> Option<Self> {
         let ulp = chrono::Duration::nanoseconds(1);
-        let d = if left { self.t.checked_sub_signed(ulp) } else { self.t.checked_add_signed(ulp) };
+        let d = match side {
+            EndpointSide::Left => self.t.checked_sub_signed(ulp),
+            EndpointSide::Right => self.t.checked_add_signed(ulp),
+        };
         d.map(Self::new)
     }
 
-    fn to_closed(&self, left: bool) -> Option<Self> {
+    fn to_closed(&self, side: EndpointSide) -> Option<Self> {
         let ulp = chrono::Duration::nanoseconds(1);
-        let d = if left { self.t.checked_add_signed(ulp) } else { self.t.checked_sub_signed(ulp) };
+        let d = match side {
+            EndpointSide::Left => self.t.checked_add_signed(ulp),
+            EndpointSide::Right => self.t.checked_sub_signed(ulp),
+        };
         d.map(Self::new)
     }
 }
@@ -431,7 +440,7 @@ impl EndpointConversion for Time {
 mod tests {
     use chrono_tz::Australia::Sydney;
     use chrono_tz::US::Eastern;
-    use pretty_assertions::assert_eq;
+    use pretty_assertions::{assert_eq, assert_ne};
 
     use super::*;
     use crate::date::ymd;
@@ -496,12 +505,32 @@ mod tests {
     }
 
     #[test]
-    fn serialization() -> Result<()> {
+    fn serialization() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let dt = ymdhms(2018, 1, 30, 6, 4, 57, Sydney);
         let se = serde_json::to_string(&dt)?;
-        assert_eq!(se, "\"2018-01-30T06:04:57 Australia/Sydney\"");
+        assert_eq!(se, "\"2018-01-30T06:04:57+11:00 Australia/Sydney\"");
         let de: Time = serde_json::from_str(&se)?;
         assert_eq!(de, dt);
+        Ok(())
+    }
+
+    #[test]
+    fn serialization_round_trips_ambiguous_local_time()
+    -> std::result::Result<(), Box<dyn std::error::Error>> {
+        let a = Time::from_local_iso("2017-11-05T01:30:00-04:00", Eastern)?;
+        let b = Time::from_local_iso("2017-11-05T01:30:00-05:00", Eastern)?;
+        assert_ne!(a.utc_dec(), b.utc_dec());
+        assert_eq!(a.to_local(), b.to_local());
+
+        let se_a = serde_json::to_string(&a)?;
+        let se_b = serde_json::to_string(&b)?;
+        assert_ne!(se_a, se_b);
+
+        let de_a: Time = serde_json::from_str(&se_a)?;
+        let de_b: Time = serde_json::from_str(&se_b)?;
+        assert_eq!(de_a, a);
+        assert_eq!(de_b, b);
+
         Ok(())
     }
 
@@ -510,5 +539,39 @@ mod tests {
         let time = ymdhms(2018, 1, 30, 6, 4, 57, Sydney);
         // This shouldn't change the underlying time, just the timezone it's in.
         assert_eq!(time.utc_dec(), time.with_tz(Eastern).utc_dec());
+    }
+
+    #[test]
+    fn time_with_timezone_conversion() -> Result<()> {
+        let t = ymdhms(2020, 3, 15, 12, 0, 0, Eastern);
+
+        let d = t.date();
+        assert_eq!(d.tz(), Eastern);
+        assert_eq!(d.year(), 2020);
+        assert_eq!(d.month(), 3);
+        assert_eq!(d.day(), 15);
+
+        let t2 = d.and_hms(12, 0, 0)?;
+        assert_eq!(t2, t);
+
+        Ok(())
+    }
+
+    #[test]
+    fn with_nanos_allows_leap_second_fraction() {
+        let t = Time::zero(UTC);
+        assert_eq!(t.with_nanos(1_000_000_000).utc_timestamp(), (0, 1_000_000_000));
+    }
+
+    #[test]
+    fn with_micros_allows_leap_second_fraction() {
+        let t = Time::zero(UTC);
+        assert_eq!(t.with_micros(1_000_000).utc_timestamp(), (0, 1_000_000_000));
+    }
+
+    #[test]
+    fn with_millis_allows_leap_second_fraction() {
+        let t = Time::zero(UTC);
+        assert_eq!(t.with_millis(1000).utc_timestamp(), (0, 1_000_000_000));
     }
 }

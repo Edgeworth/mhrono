@@ -164,16 +164,16 @@ impl TimeOp {
         Self::add_days(1)
     }
 
-    pub const fn set_year(n: i64) -> Self {
-        Self::new(TOp::SetYear, n)
+    pub const fn set_year(n: u32) -> Self {
+        Self::new(TOp::SetYear, n as i64)
     }
 
-    pub const fn set_month(n: i64) -> Self {
-        Self::new(TOp::SetMonth, n)
+    pub const fn set_month(n: u32) -> Self {
+        Self::new(TOp::SetMonth, n as i64)
     }
 
-    pub const fn set_day(n: i64) -> Self {
-        Self::new(TOp::SetDay, n)
+    pub const fn set_day(n: u32) -> Self {
+        Self::new(TOp::SetDay, n as i64)
     }
 
     pub const fn nop() -> Self {
@@ -216,28 +216,28 @@ impl TimeOp {
         Self::new(TOp::AddNanos, n)
     }
 
-    pub const fn set_hour(n: i64) -> Self {
-        Self::new(TOp::SetHour, n)
+    pub const fn set_hour(n: u32) -> Self {
+        Self::new(TOp::SetHour, n as i64)
     }
 
-    pub const fn set_min(n: i64) -> Self {
-        Self::new(TOp::SetMin, n)
+    pub const fn set_min(n: u32) -> Self {
+        Self::new(TOp::SetMin, n as i64)
     }
 
-    pub const fn set_sec(n: i64) -> Self {
-        Self::new(TOp::SetSec, n)
+    pub const fn set_sec(n: u32) -> Self {
+        Self::new(TOp::SetSec, n as i64)
     }
 
-    pub const fn set_millis(n: i64) -> Self {
-        Self::new(TOp::SetMillis, n)
+    pub const fn set_millis(n: u32) -> Self {
+        Self::new(TOp::SetMillis, n as i64)
     }
 
-    pub const fn set_micros(n: i64) -> Self {
-        Self::new(TOp::SetMicros, n)
+    pub const fn set_micros(n: u32) -> Self {
+        Self::new(TOp::SetMicros, n as i64)
     }
 
-    pub const fn set_nanos(n: i64) -> Self {
-        Self::new(TOp::SetNanos, n)
+    pub const fn set_nanos(n: u32) -> Self {
+        Self::new(TOp::SetNanos, n as i64)
     }
 
     pub fn apply(&self, t: impl Into<Time>) -> Time {
@@ -406,16 +406,16 @@ impl DateOp {
         Self::add_days(1)
     }
 
-    pub const fn set_year(n: i64) -> Self {
-        Self::new(DOp::SetYear, n)
+    pub const fn set_year(n: u32) -> Self {
+        Self::new(DOp::SetYear, n as i64)
     }
 
-    pub const fn set_month(n: i64) -> Self {
-        Self::new(DOp::SetMonth, n)
+    pub const fn set_month(n: u32) -> Self {
+        Self::new(DOp::SetMonth, n as i64)
     }
 
-    pub const fn set_day(n: i64) -> Self {
-        Self::new(DOp::SetDay, n)
+    pub const fn set_day(n: u32) -> Self {
+        Self::new(DOp::SetDay, n as i64)
     }
 
     pub const fn nop() -> Self {
@@ -429,39 +429,39 @@ impl DateOp {
 
 fn apply_dop(d: Date, op: DOp, n: i64) -> Date {
     match op {
-        DOp::AddYears => d.add_years(n as i32),
-        DOp::AddMonths => d.add_months(n as i32),
-        DOp::AddDays => d.add_days(n as i32),
+        DOp::AddYears => d.add_years(n.try_into().unwrap()),
+        DOp::AddMonths => d.add_months(n.try_into().unwrap()),
+        DOp::AddDays => d.add_days(n.try_into().unwrap()),
         DOp::AdvDay => {
-            let n = d.with_day(n as u32);
+            let n = d.with_day(n.try_into().unwrap());
             if n <= d { n.add_months(1) } else { n }
         }
         DOp::AdvMonth => {
-            let n = d.with_month(n as u32);
+            let n = d.with_month(n.try_into().unwrap());
             if n <= d { n.add_years(1) } else { n }
         }
         DOp::FindDay => {
-            let n = d.with_day(n as u32);
+            let n = d.with_day(n.try_into().unwrap());
             if n < d { n.add_months(1) } else { n }
         }
         DOp::FindMonth => {
-            let n = d.with_month(n as u32);
+            let n = d.with_month(n.try_into().unwrap());
             if n < d { n.add_years(1) } else { n }
         }
         _ if (DOp::AdvMon..=DOp::AdvSun).contains(&op) => {
             let offset = (op as i32 - DOp::AdvMon as i32 - d.weekday() as i32).rem_euclid(7);
             let n = if offset != 0 && n > 0 { n - 1 } else { n };
-            d.add_days(offset + 7 * n as i32)
+            d.add_days(offset + 7 * i32::try_from(n).unwrap())
         }
         _ if (DOp::FindMon..=DOp::FindSun).contains(&op) => {
             let offset = (op as i32 - DOp::FindMon as i32 - d.weekday() as i32).rem_euclid(7);
             let n = if n < 0 && offset != 0 { n - 1 } else { n };
             let n = n - n.signum();
-            d.add_days(offset + 7 * n as i32)
+            d.add_days(offset + 7 * i32::try_from(n).unwrap())
         }
-        DOp::SetYear => d.with_year(n as i32),
-        DOp::SetMonth => d.with_month(n as u32),
-        DOp::SetDay => d.with_day(n as u32),
+        DOp::SetYear => d.with_year(n.try_into().unwrap()),
+        DOp::SetMonth => d.with_month(n.try_into().unwrap()),
+        DOp::SetDay => d.with_day(n.try_into().unwrap()),
         _ => d,
     }
 }
@@ -487,10 +487,10 @@ impl SpanOp {
 #[cfg(test)]
 mod tests {
     use chrono_tz::{Australia, Tz, US, UTC};
-    use eyre::Result;
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::Result;
     use crate::date::ymd;
 
     const TZ: [Tz; 3] = [US::Eastern, UTC, Australia::Eucla];

@@ -1,8 +1,7 @@
 use std::cmp::{Eq, PartialEq, PartialOrd};
 use std::hash::Hash;
 
-use eyre::Result;
-
+use crate::Result;
 use crate::seq::inner::SeriesInner;
 use crate::seq::series::Series;
 use crate::span::any::SpanAny;
@@ -451,11 +450,11 @@ mod tests {
     }
 
     #[test]
-    fn span_exc_subseq_unbounded_both() {
+    fn span_exc_subseq_unbounded_both() -> Result<()> {
         let mut series = SpanExcSeries::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
         let span = SpanAny::unb();
 
         let subseq = series.subseq(span);
@@ -463,14 +462,15 @@ mod tests {
             subseq,
             &[(SpanExc::new(2, 3), 10), (SpanExc::new(5, 6), 20), (SpanExc::new(8, 9), 30)]
         );
+        Ok(())
     }
 
     #[test]
-    fn span_exc_subseq_unbounded_left() {
+    fn span_exc_subseq_unbounded_left() -> Result<()> {
         let mut series = SpanExcSeries::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::unb_inc(5);
         let subseq = series.subseq(span);
@@ -479,14 +479,15 @@ mod tests {
         let span = SpanAny::unb_inc(6);
         let subseq = series.subseq(span);
         assert_eq!(subseq, &[(SpanExc::new(2, 3), 10), (SpanExc::new(5, 6), 20)]);
+        Ok(())
     }
 
     #[test]
-    fn span_exc_subseq_unbounded_right() {
+    fn span_exc_subseq_unbounded_right() -> Result<()> {
         let mut series = SpanExcSeries::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::inc_unb(5);
         let subseq = series.subseq(span);
@@ -495,14 +496,15 @@ mod tests {
         let span = SpanAny::inc_unb(6);
         let subseq = series.subseq(span);
         assert_eq!(subseq, &[(SpanExc::new(8, 9), 30)]);
+        Ok(())
     }
 
     #[test]
-    fn span_exc_subseq_bounded() {
+    fn span_exc_subseq_bounded() -> Result<()> {
         let mut series = SpanExcSeries::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::inc(5, 9);
         let subseq = series.subseq(span);
@@ -511,14 +513,15 @@ mod tests {
         let span = SpanAny::inc(6, 8);
         let subseq = series.subseq(span);
         assert_eq!(subseq, &[]);
+        Ok(())
     }
 
     #[test]
-    fn span_exc_subseq_series_unbounded_both() {
+    fn span_exc_subseq_series_unbounded_both() -> Result<()> {
         let mut series = SpanExcSeries::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
         let span = SpanAny::unb();
 
         let subseq_series = series.subseq_series(span);
@@ -526,14 +529,15 @@ mod tests {
         assert_eq!(subseq_series.get(0), Some(&(SpanExc::new(2, 3), 10)));
         assert_eq!(subseq_series.get(1), Some(&(SpanExc::new(5, 6), 20)));
         assert_eq!(subseq_series.get(2), Some(&(SpanExc::new(8, 9), 30)));
+        Ok(())
     }
 
     #[test]
-    fn span_exc_subseq_series_unbounded_left() {
+    fn span_exc_subseq_series_unbounded_left() -> Result<()> {
         let mut series = SpanExcSeries::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::unb_inc(5);
         let subseq_series = series.subseq_series(span);
@@ -545,14 +549,15 @@ mod tests {
         assert_eq!(subseq_series.len(), 2);
         assert_eq!(subseq_series.get(0), Some(&(SpanExc::new(2, 3), 10)));
         assert_eq!(subseq_series.get(1), Some(&(SpanExc::new(5, 6), 20)));
+        Ok(())
     }
 
     #[test]
-    fn span_exc_subseq_series_unbounded_right() {
+    fn span_exc_subseq_series_unbounded_right() -> Result<()> {
         let mut series = SpanExcSeries::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::inc_unb(5);
         let subseq_series = series.subseq_series(span);
@@ -564,14 +569,15 @@ mod tests {
         let subseq_series = series.subseq_series(span);
         assert_eq!(subseq_series.len(), 1);
         assert_eq!(subseq_series.get(0), Some(&(SpanExc::new(8, 9), 30)));
+        Ok(())
     }
 
     #[test]
-    fn span_exc_subseq_series_bounded() {
+    fn span_exc_subseq_series_bounded() -> Result<()> {
         let mut series = SpanExcSeries::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::inc(5, 9);
         let subseq_series = series.subseq_series(span);
@@ -582,14 +588,15 @@ mod tests {
         let span = SpanAny::inc(6, 8);
         let subseq_series = series.subseq_series(span);
         assert_eq!(subseq_series.len(), 0);
+        Ok(())
     }
 
     #[test]
-    fn span_exc_subseq_unbounded_left_exc() {
+    fn span_exc_subseq_unbounded_left_exc() -> Result<()> {
         let mut series = SpanExcSeries::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::unb_exc(5);
         let subseq = series.subseq(span);
@@ -598,14 +605,15 @@ mod tests {
         let span = SpanAny::unb_exc(6);
         let subseq = series.subseq(span);
         assert_eq!(subseq, &[(SpanExc::new(2, 3), 10), (SpanExc::new(5, 6), 20)]);
+        Ok(())
     }
 
     #[test]
-    fn span_exc_subseq_unbounded_right_exc() {
+    fn span_exc_subseq_unbounded_right_exc() -> Result<()> {
         let mut series = SpanExcSeries::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::exc_unb(5);
         let subseq = series.subseq(span);
@@ -614,14 +622,15 @@ mod tests {
         let span = SpanAny::exc_unb(6);
         let subseq = series.subseq(span);
         assert_eq!(subseq, &[(SpanExc::new(8, 9), 30)]);
+        Ok(())
     }
 
     #[test]
-    fn span_exc_subseq_bounded_exc() {
+    fn span_exc_subseq_bounded_exc() -> Result<()> {
         let mut series = SpanExcSeries::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::exc(5, 8);
         let subseq = series.subseq(span);
@@ -630,14 +639,15 @@ mod tests {
         let span = SpanAny::exc(6, 9);
         let subseq = series.subseq(span);
         assert_eq!(subseq, &[(SpanExc::new(8, 9), 30)]);
+        Ok(())
     }
 
     #[test]
-    fn span_exc_subseq_bounded_exc_exc() {
+    fn span_exc_subseq_bounded_exc_exc() -> Result<()> {
         let mut series = SpanExcSeries::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
         let span = SpanAny::exc_exc(5, 8);
 
         let subseq = series.subseq(span);
@@ -646,14 +656,15 @@ mod tests {
         let span = SpanAny::exc_exc(6, 9);
         let subseq = series.subseq(span);
         assert_eq!(subseq, &[(SpanExc::new(8, 9), 30)]);
+        Ok(())
     }
 
     #[test]
-    fn span_exc_subseq_series_unbounded_left_exc() {
+    fn span_exc_subseq_series_unbounded_left_exc() -> Result<()> {
         let mut series = SpanExcSeries::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::unb_exc(5);
         let subseq_series = series.subseq_series(span);
@@ -665,14 +676,15 @@ mod tests {
         assert_eq!(subseq_series.len(), 2);
         assert_eq!(subseq_series.get(0), Some(&(SpanExc::new(2, 3), 10)));
         assert_eq!(subseq_series.get(1), Some(&(SpanExc::new(5, 6), 20)));
+        Ok(())
     }
 
     #[test]
-    fn span_exc_subseq_series_unbounded_right_exc() {
+    fn span_exc_subseq_series_unbounded_right_exc() -> Result<()> {
         let mut series = SpanExcSeries::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::exc_unb(5);
         let subseq_series = series.subseq_series(span);
@@ -683,14 +695,15 @@ mod tests {
         let subseq_series = series.subseq_series(span);
         assert_eq!(subseq_series.len(), 1);
         assert_eq!(subseq_series.get(0), Some(&(SpanExc::new(8, 9), 30)));
+        Ok(())
     }
 
     #[test]
-    fn span_exc_subseq_series_bounded_exc() {
+    fn span_exc_subseq_series_bounded_exc() -> Result<()> {
         let mut series = SpanExcSeries::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::exc(5, 8);
         let subseq_series = series.subseq_series(span);
@@ -701,14 +714,15 @@ mod tests {
         let subseq_series = series.subseq_series(span);
         assert_eq!(subseq_series.len(), 1);
         assert_eq!(subseq_series.get(0), Some(&(SpanExc::new(8, 9), 30)));
+        Ok(())
     }
 
     #[test]
-    fn span_exc_subseq_series_bounded_exc_exc() {
+    fn span_exc_subseq_series_bounded_exc_exc() -> Result<()> {
         let mut series = SpanExcSeries::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::exc_exc(5, 8);
         let subseq_series = series.subseq_series(span);
@@ -718,6 +732,7 @@ mod tests {
         let subseq_series = series.subseq_series(span);
         assert_eq!(subseq_series.len(), 1);
         assert_eq!(subseq_series.get(0), Some(&(SpanExc::new(8, 9), 30)));
+        Ok(())
     }
 
     #[test]
@@ -1048,11 +1063,11 @@ mod tests {
     }
 
     #[test]
-    fn span_exc_right_subseq_unbounded_both() {
+    fn span_exc_right_subseq_unbounded_both() -> Result<()> {
         let mut series = SpanExcSeriesRight::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
         let span = SpanAny::unb();
 
         let subseq = series.subseq(span);
@@ -1060,14 +1075,15 @@ mod tests {
             subseq,
             &[(SpanExc::new(2, 3), 10), (SpanExc::new(5, 6), 20), (SpanExc::new(8, 9), 30)]
         );
+        Ok(())
     }
 
     #[test]
-    fn span_exc_right_subseq_unbounded_left() {
+    fn span_exc_right_subseq_unbounded_left() -> Result<()> {
         let mut series = SpanExcSeriesRight::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::unb_inc(5);
         let subseq = series.subseq(span);
@@ -1076,14 +1092,15 @@ mod tests {
         let span = SpanAny::unb_inc(6);
         let subseq = series.subseq(span);
         assert_eq!(subseq, &[(SpanExc::new(2, 3), 10), (SpanExc::new(5, 6), 20)]);
+        Ok(())
     }
 
     #[test]
-    fn span_exc_right_subseq_unbounded_right() {
+    fn span_exc_right_subseq_unbounded_right() -> Result<()> {
         let mut series = SpanExcSeriesRight::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::inc_unb(5);
         let subseq = series.subseq(span);
@@ -1092,14 +1109,15 @@ mod tests {
         let span = SpanAny::inc_unb(6);
         let subseq = series.subseq(span);
         assert_eq!(subseq, &[(SpanExc::new(8, 9), 30)]);
+        Ok(())
     }
 
     #[test]
-    fn span_exc_right_subseq_bounded() {
+    fn span_exc_right_subseq_bounded() -> Result<()> {
         let mut series = SpanExcSeriesRight::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::inc(5, 9);
         let subseq = series.subseq(span);
@@ -1108,14 +1126,15 @@ mod tests {
         let span = SpanAny::inc(6, 8);
         let subseq = series.subseq(span);
         assert_eq!(subseq, &[]);
+        Ok(())
     }
 
     #[test]
-    fn span_exc_right_subseq_series_unbounded_both() {
+    fn span_exc_right_subseq_series_unbounded_both() -> Result<()> {
         let mut series = SpanExcSeriesRight::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
         let span = SpanAny::unb();
 
         let subseq_series = series.subseq_series(span);
@@ -1123,14 +1142,15 @@ mod tests {
         assert_eq!(subseq_series.get(0), Some(&(SpanExc::new(2, 3), 10)));
         assert_eq!(subseq_series.get(1), Some(&(SpanExc::new(5, 6), 20)));
         assert_eq!(subseq_series.get(2), Some(&(SpanExc::new(8, 9), 30)));
+        Ok(())
     }
 
     #[test]
-    fn span_exc_right_subseq_series_unbounded_left() {
+    fn span_exc_right_subseq_series_unbounded_left() -> Result<()> {
         let mut series = SpanExcSeriesRight::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::unb_inc(5);
         let subseq_series = series.subseq_series(span);
@@ -1142,14 +1162,15 @@ mod tests {
         assert_eq!(subseq_series.len(), 2);
         assert_eq!(subseq_series.get(0), Some(&(SpanExc::new(2, 3), 10)));
         assert_eq!(subseq_series.get(1), Some(&(SpanExc::new(5, 6), 20)));
+        Ok(())
     }
 
     #[test]
-    fn span_exc_right_subseq_series_unbounded_right() {
+    fn span_exc_right_subseq_series_unbounded_right() -> Result<()> {
         let mut series = SpanExcSeriesRight::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::inc_unb(5);
         let subseq_series = series.subseq_series(span);
@@ -1161,14 +1182,15 @@ mod tests {
         let subseq_series = series.subseq_series(span);
         assert_eq!(subseq_series.len(), 1);
         assert_eq!(subseq_series.get(0), Some(&(SpanExc::new(8, 9), 30)));
+        Ok(())
     }
 
     #[test]
-    fn span_exc_right_subseq_series_bounded() {
+    fn span_exc_right_subseq_series_bounded() -> Result<()> {
         let mut series = SpanExcSeriesRight::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::inc(5, 9);
         let subseq_series = series.subseq_series(span);
@@ -1179,14 +1201,15 @@ mod tests {
         let span = SpanAny::inc(6, 8);
         let subseq_series = series.subseq_series(span);
         assert_eq!(subseq_series.len(), 0);
+        Ok(())
     }
 
     #[test]
-    fn span_exc_right_subseq_unbounded_left_exc() {
+    fn span_exc_right_subseq_unbounded_left_exc() -> Result<()> {
         let mut series = SpanExcSeriesRight::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::unb_exc(5);
         let subseq = series.subseq(span);
@@ -1195,14 +1218,15 @@ mod tests {
         let span = SpanAny::unb_exc(6);
         let subseq = series.subseq(span);
         assert_eq!(subseq, &[(SpanExc::new(2, 3), 10), (SpanExc::new(5, 6), 20)]);
+        Ok(())
     }
 
     #[test]
-    fn span_exc_right_subseq_unbounded_right_exc() {
+    fn span_exc_right_subseq_unbounded_right_exc() -> Result<()> {
         let mut series = SpanExcSeriesRight::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::exc_unb(5);
         let subseq = series.subseq(span);
@@ -1211,14 +1235,15 @@ mod tests {
         let span = SpanAny::exc_unb(6);
         let subseq = series.subseq(span);
         assert_eq!(subseq, &[(SpanExc::new(8, 9), 30)]);
+        Ok(())
     }
 
     #[test]
-    fn span_exc_right_subseq_bounded_exc() {
+    fn span_exc_right_subseq_bounded_exc() -> Result<()> {
         let mut series = SpanExcSeriesRight::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::exc(5, 8);
         let subseq = series.subseq(span);
@@ -1227,14 +1252,15 @@ mod tests {
         let span = SpanAny::exc(6, 9);
         let subseq = series.subseq(span);
         assert_eq!(subseq, &[(SpanExc::new(8, 9), 30)]);
+        Ok(())
     }
 
     #[test]
-    fn span_exc_right_subseq_bounded_exc_exc() {
+    fn span_exc_right_subseq_bounded_exc_exc() -> Result<()> {
         let mut series = SpanExcSeriesRight::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
         let span = SpanAny::exc_exc(5, 8);
 
         let subseq = series.subseq(span);
@@ -1243,14 +1269,15 @@ mod tests {
         let span = SpanAny::exc_exc(6, 9);
         let subseq = series.subseq(span);
         assert_eq!(subseq, &[(SpanExc::new(8, 9), 30)]);
+        Ok(())
     }
 
     #[test]
-    fn span_exc_right_subseq_series_unbounded_left_exc() {
+    fn span_exc_right_subseq_series_unbounded_left_exc() -> Result<()> {
         let mut series = SpanExcSeriesRight::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::unb_exc(5);
         let subseq_series = series.subseq_series(span);
@@ -1262,14 +1289,15 @@ mod tests {
         assert_eq!(subseq_series.len(), 2);
         assert_eq!(subseq_series.get(0), Some(&(SpanExc::new(2, 3), 10)));
         assert_eq!(subseq_series.get(1), Some(&(SpanExc::new(5, 6), 20)));
+        Ok(())
     }
 
     #[test]
-    fn span_exc_right_subseq_series_unbounded_right_exc() {
+    fn span_exc_right_subseq_series_unbounded_right_exc() -> Result<()> {
         let mut series = SpanExcSeriesRight::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::exc_unb(5);
         let subseq_series = series.subseq_series(span);
@@ -1280,14 +1308,15 @@ mod tests {
         let subseq_series = series.subseq_series(span);
         assert_eq!(subseq_series.len(), 1);
         assert_eq!(subseq_series.get(0), Some(&(SpanExc::new(8, 9), 30)));
+        Ok(())
     }
 
     #[test]
-    fn span_exc_right_subseq_series_bounded_exc() {
+    fn span_exc_right_subseq_series_bounded_exc() -> Result<()> {
         let mut series = SpanExcSeriesRight::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::exc(5, 8);
         let subseq_series = series.subseq_series(span);
@@ -1298,14 +1327,15 @@ mod tests {
         let subseq_series = series.subseq_series(span);
         assert_eq!(subseq_series.len(), 1);
         assert_eq!(subseq_series.get(0), Some(&(SpanExc::new(8, 9), 30)));
+        Ok(())
     }
 
     #[test]
-    fn span_exc_right_subseq_series_bounded_exc_exc() {
+    fn span_exc_right_subseq_series_bounded_exc_exc() -> Result<()> {
         let mut series = SpanExcSeriesRight::new();
-        series.push((SpanExc::new(2, 3), 10)).unwrap();
-        series.push((SpanExc::new(5, 6), 20)).unwrap();
-        series.push((SpanExc::new(8, 9), 30)).unwrap();
+        series.push((SpanExc::new(2, 3), 10))?;
+        series.push((SpanExc::new(5, 6), 20))?;
+        series.push((SpanExc::new(8, 9), 30))?;
 
         let span = SpanAny::exc_exc(5, 8);
         let subseq_series = series.subseq_series(span);
@@ -1315,5 +1345,6 @@ mod tests {
         let subseq_series = series.subseq_series(span);
         assert_eq!(subseq_series.len(), 1);
         assert_eq!(subseq_series.get(0), Some(&(SpanExc::new(8, 9), 30)));
+        Ok(())
     }
 }

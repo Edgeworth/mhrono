@@ -113,11 +113,9 @@ static NYSE_SPECIAL: LazyLock<DaySet> = LazyLock::new(|| {
 });
 
 pub fn get_nyse() -> Calendar {
-    Calendar::new(
-        "NYSE",
-        Eastern,
-        &[SpanOp::new(TimeOp::add_mins(570), TimeOp::add_hours(16))],
-        &[
+    Calendar::new("NYSE", Eastern)
+        .with_opens(&[SpanOp::new(TimeOp::add_mins(570), TimeOp::add_hours(16))])
+        .with_holidays(&[
             &SATURDAY,
             &SUNDAY,
             &US_NEW_YEARS_DAY,
@@ -158,8 +156,8 @@ pub fn get_nyse() -> Calendar {
             &HURRICANE_GLORIA_CLOSING,
             &HURRICANE_SANDY_CLOSINGS,
             &US_NATIONAL_DAYSOF_MOURNING,
-        ],
-        &[
+        ])
+        .with_overrides(&[
             (
                 &[SpanOp::new(TimeOp::add_mins(570), TimeOp::add_hours(13))],
                 &[
@@ -175,6 +173,5 @@ pub fn get_nyse() -> Calendar {
                 &[SpanOp::new(TimeOp::add_mins(570), TimeOp::add_hours(14))],
                 &[&CHRISTMAS_EVE_BEFORE1993, &US_BLACK_FRIDAY_BEFORE1993],
             ),
-        ],
-    )
+        ])
 }

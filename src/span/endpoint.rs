@@ -11,27 +11,26 @@ use serde::{Deserialize, Serialize};
 #[must_use]
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Serialize, Deserialize, IsVariant)]
 pub enum Endpoint<T> {
-    /// |left| is whether this endpoint ends on the left or the right side. If true,
-    /// imagine the span extending off from the left to the right.
+    /// |side| is whether this endpoint ends on the left or the right side.
     Open {
         p: T,
-        left: bool,
+        side: EndpointSide,
     },
     Closed {
         p: T,
-        left: bool,
+        side: EndpointSide,
     },
     Unbounded {
-        left: bool,
+        side: EndpointSide,
     },
 }
 
 impl<T> Endpoint<T> {
-    pub fn from_bound(bound: Bound<T>, left: bool) -> Self {
+    pub fn from_bound(bound: Bound<T>, side: EndpointSide) -> Self {
         match bound {
-            Bound::Included(p) => Self::Closed { p, left },
-            Bound::Excluded(p) => Self::Open { p, left },
-            Bound::Unbounded => Self::Unbounded { left },
+            Bound::Included(p) => Self::Closed { p, side },
+            Bound::Excluded(p) => Self::Open { p, side },
+            Bound::Unbounded => Self::Unbounded { side },
         }
     }
 
@@ -52,9 +51,9 @@ impl<T> Endpoint<T> {
 
     pub const fn is_left(&self) -> bool {
         match self {
-            Endpoint::Open { left, .. }
-            | Endpoint::Closed { left, .. }
-            | Endpoint::Unbounded { left } => *left,
+            Endpoint::Open { side, .. }
+            | Endpoint::Closed { side, .. }
+            | Endpoint::Unbounded { side } => matches!(side, EndpointSide::Left),
         }
     }
 
@@ -64,14 +63,14 @@ impl<T> Endpoint<T> {
 
     pub const fn is_left_unbounded(&self) -> bool {
         match self {
-            Endpoint::Unbounded { left } => *left,
+            Endpoint::Unbounded { side } => matches!(side, EndpointSide::Left),
             _ => false,
         }
     }
 
     pub const fn is_right_unbounded(&self) -> bool {
         match self {
-            Endpoint::Unbounded { left } => !*left,
+            Endpoint::Unbounded { side } => matches!(side, EndpointSide::Right),
             _ => false,
         }
     }
@@ -86,27 +85,18 @@ impl<T: Clone> From<Endpoint<T>> for Bound<T> {
 impl<T: fmt::Display> fmt::Display for Endpoint<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Endpoint::Open { p, left } => {
-                if *left {
-                    write!(f, "({p}")
-                } else {
-                    write!(f, "{p})")
-                }
-            }
-            Endpoint::Closed { p, left } => {
-                if *left {
-                    write!(f, "[{p}")
-                } else {
-                    write!(f, "{p}]")
-                }
-            }
-            Endpoint::Unbounded { left } => {
-                if *left {
-                    write!(f, "(-inf")
-                } else {
-                    write!(f, "+inf)")
-                }
-            }
+            Endpoint::Open { p, side } => match side {
+                EndpointSide::Left => write!(f, "({p}"),
+                EndpointSide::Right => write!(f, "{p})"),
+            },
+            Endpoint::Closed { p, side } => match side {
+                EndpointSide::Left => write!(f, "[{p}"),
+                EndpointSide::Right => write!(f, "{p}]"),
+            },
+            Endpoint::Unbounded { side } => match side {
+                EndpointSide::Left => write!(f, "(-inf"),
+                EndpointSide::Right => write!(f, "+inf)"),
+            },
         }
     }
 }
@@ -125,24 +115,18 @@ impl<T: PartialEq> PartialEq<T> for Endpoint<T> {
 impl<T: PartialOrd> PartialOrd<T> for Endpoint<T> {
     fn partial_cmp(&self, other: &T) -> Option<Ordering> {
         match self {
-            Endpoint::Open { p, left } => match p.partial_cmp(other) {
-                Some(Ordering::Equal) => {
-                    if *left {
-                        Some(Ordering::Greater)
-                    } else {
-                        Some(Ordering::Less)
-                    }
-                }
+            Endpoint::Open { p, side } => match p.partial_cmp(other) {
+                Some(Ordering::Equal) => Some(match side {
+                    EndpointSide::Left => Ordering::Greater,
+                    EndpointSide::Right => Ordering::Less,
+                }),
                 x => x,
             },
             Endpoint::Closed { p, .. } => p.partial_cmp(other),
-            Endpoint::Unbounded { left } => {
-                if *left {
-                    Some(Ordering::Less)
-                } else {
-                    Some(Ordering::Greater)
-                }
-            }
+            Endpoint::Unbounded { side } => Some(match side {
+                EndpointSide::Left => Ordering::Less,
+                EndpointSide::Right => Ordering::Greater,
+            }),
         }
     }
 }
@@ -155,52 +139,56 @@ impl<T: Ord> Ord for Endpoint<T> {
 
 impl<T: PartialOrd> PartialOrd for Endpoint<T> {
     fn partial_cmp(&self, other: &Endpoint<T>) -> Option<Ordering> {
+        use EndpointSide::{Left, Right};
+
         match (self, other) {
-            (Endpoint::Open { p: p1, left: left1 }, Endpoint::Open { p: p2, left: left2 }) => {
+            (Endpoint::Open { p: p1, side: s1 }, Endpoint::Open { p: p2, side: s2 }) => {
                 match p1.partial_cmp(p2) {
-                    Some(Ordering::Equal) => match (left1, left2) {
-                        (false, false) | (true, true) => Some(Ordering::Equal),
-                        (true, false) => Some(Ordering::Greater),
-                        (false, true) => Some(Ordering::Less),
-                    },
+                    Some(Ordering::Equal) => Some(match (s1, s2) {
+                        (Left, Left) | (Right, Right) => Ordering::Equal,
+                        (Left, Right) => Ordering::Greater,
+                        (Right, Left) => Ordering::Less,
+                    }),
                     x => x,
                 }
             }
-            (Endpoint::Open { p: p1, left: left1 }, Endpoint::Closed { p: p2, left: left2 }) => {
+            (Endpoint::Open { p: p1, side }, Endpoint::Closed { p: p2, .. }) => {
                 match p1.partial_cmp(p2) {
-                    Some(Ordering::Equal) => match (left1, left2) {
-                        (true, false | true) => Some(Ordering::Greater),
-                        (false, true | false) => Some(Ordering::Less),
-                    },
+                    Some(Ordering::Equal) => Some(match side {
+                        Left => Ordering::Greater,
+                        Right => Ordering::Less,
+                    }),
                     x => x,
                 }
             }
-            (Endpoint::Open { .. } | Endpoint::Closed { .. }, Endpoint::Unbounded { left }) => {
-                if *left {
-                    Some(Ordering::Greater)
-                } else {
-                    Some(Ordering::Less)
-                }
+            (Endpoint::Open { .. } | Endpoint::Closed { .. }, Endpoint::Unbounded { side }) => {
+                Some(match side {
+                    Left => Ordering::Greater,
+                    Right => Ordering::Less,
+                })
             }
-            (Endpoint::Closed { p: p1, left: left1 }, Endpoint::Open { p: p2, left: left2 }) => {
+            (Endpoint::Closed { p: p1, .. }, Endpoint::Open { p: p2, side }) => {
                 match p1.partial_cmp(p2) {
-                    Some(Ordering::Equal) => match (left1, left2) {
-                        (false | true, true) => Some(Ordering::Less),
-                        (true | false, false) => Some(Ordering::Greater),
-                    },
+                    Some(Ordering::Equal) => Some(match side {
+                        Left => Ordering::Less,
+                        Right => Ordering::Greater,
+                    }),
                     x => x,
                 }
             }
             (Endpoint::Closed { p: p1, .. }, Endpoint::Closed { p: p2, .. }) => p1.partial_cmp(p2),
-            (Endpoint::Unbounded { left }, Endpoint::Open { .. } | Endpoint::Closed { .. }) => {
-                if *left {
-                    Some(Ordering::Less)
-                } else {
-                    Some(Ordering::Greater)
-                }
+            (Endpoint::Unbounded { side }, Endpoint::Open { .. } | Endpoint::Closed { .. }) => {
+                Some(match side {
+                    Left => Ordering::Less,
+                    Right => Ordering::Greater,
+                })
             }
-            (Endpoint::Unbounded { left: left1 }, Endpoint::Unbounded { left: left2 }) => {
-                left2.partial_cmp(left1)
+            (Endpoint::Unbounded { side: s1 }, Endpoint::Unbounded { side: s2 }) => {
+                Some(match (s1, s2) {
+                    (Left, Left) | (Right, Right) => Ordering::Equal,
+                    (Left, Right) => Ordering::Less,
+                    (Right, Left) => Ordering::Greater,
+                })
             }
         }
     }
@@ -211,9 +199,9 @@ impl<U, T: Add<U, Output = T>> Add<U> for Endpoint<T> {
 
     fn add(self, other: U) -> Self::Output {
         match self {
-            Endpoint::Open { p, left } => Endpoint::Open { p: p + other, left },
-            Endpoint::Closed { p, left } => Endpoint::Closed { p: p + other, left },
-            Endpoint::Unbounded { left } => Endpoint::Unbounded { left },
+            Endpoint::Open { p, side } => Endpoint::Open { p: p + other, side },
+            Endpoint::Closed { p, side } => Endpoint::Closed { p: p + other, side },
+            Endpoint::Unbounded { side } => Endpoint::Unbounded { side },
         }
     }
 }
@@ -232,9 +220,9 @@ impl<U, T: Sub<U, Output = T>> Sub<U> for Endpoint<T> {
 
     fn sub(self, other: U) -> Self::Output {
         match self {
-            Endpoint::Open { p, left } => Endpoint::Open { p: p - other, left },
-            Endpoint::Closed { p, left } => Endpoint::Closed { p: p - other, left },
-            Endpoint::Unbounded { left } => Endpoint::Unbounded { left },
+            Endpoint::Open { p, side } => Endpoint::Open { p: p - other, side },
+            Endpoint::Closed { p, side } => Endpoint::Closed { p: p - other, side },
+            Endpoint::Unbounded { side } => Endpoint::Unbounded { side },
         }
     }
 }
@@ -248,11 +236,18 @@ impl<U, T: SubAssign<U>> SubAssign<U> for Endpoint<T> {
     }
 }
 
+#[must_use]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Serialize, Deserialize)]
+pub enum EndpointSide {
+    Left,
+    Right,
+}
+
 pub trait EndpointConversion {
-    fn to_open(&self, left: bool) -> Option<Self>
+    fn to_open(&self, side: EndpointSide) -> Option<Self>
     where
         Self: Sized;
-    fn to_closed(&self, left: bool) -> Option<Self>
+    fn to_closed(&self, side: EndpointSide) -> Option<Self>
     where
         Self: Sized;
 }
@@ -260,19 +255,17 @@ pub trait EndpointConversion {
 macro_rules! endpoint_int_ops {
     ($($t:ty),*) => ($(
         impl EndpointConversion for $t {
-            fn to_open(&self, left: bool) -> Option<Self> {
-                if left {
-                    self.checked_sub(1)
-                } else {
-                    self.checked_add(1)
+            fn to_open(&self, side: EndpointSide) -> Option<Self> {
+                match side {
+                    EndpointSide::Left => self.checked_sub(1),
+                    EndpointSide::Right => self.checked_add(1),
                 }
             }
 
-            fn to_closed(&self, left: bool) -> Option<Self> {
-                if left {
-                    self.checked_add(1)
-                } else {
-                    self.checked_sub(1)
+            fn to_closed(&self, side: EndpointSide) -> Option<Self> {
+                match side {
+                    EndpointSide::Left => self.checked_add(1),
+                    EndpointSide::Right => self.checked_sub(1),
                 }
             }
         }
@@ -281,15 +274,21 @@ macro_rules! endpoint_int_ops {
 
 endpoint_int_ops!(i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize);
 
-const ULP: Decimal = Decimal::from_parts(1, 0, 0, false, 0);
+const ULP: Decimal = Decimal::from_parts(1, 0, 0, false, Decimal::MAX_SCALE);
 
 impl EndpointConversion for Decimal {
-    fn to_open(&self, left: bool) -> Option<Self> {
-        if left { self.checked_sub(ULP) } else { self.checked_add(ULP) }
+    fn to_open(&self, side: EndpointSide) -> Option<Self> {
+        match side {
+            EndpointSide::Left => self.checked_sub(ULP),
+            EndpointSide::Right => self.checked_add(ULP),
+        }
     }
 
-    fn to_closed(&self, left: bool) -> Option<Self> {
-        if left { self.checked_add(ULP) } else { self.checked_sub(ULP) }
+    fn to_closed(&self, side: EndpointSide) -> Option<Self> {
+        match side {
+            EndpointSide::Left => self.checked_add(ULP),
+            EndpointSide::Right => self.checked_sub(ULP),
+        }
     }
 }
 
@@ -298,7 +297,7 @@ impl<T: EndpointConversion + Copy> Endpoint<T> {
     pub fn to_open(&self) -> Option<T> {
         match self {
             Endpoint::Open { p, .. } => Some(*p),
-            Endpoint::Closed { p, left } => T::to_open(p, *left),
+            Endpoint::Closed { p, side } => p.to_open(*side),
             Endpoint::Unbounded { .. } => None,
         }
     }
@@ -306,7 +305,7 @@ impl<T: EndpointConversion + Copy> Endpoint<T> {
     #[must_use]
     pub fn to_closed(&self) -> Option<T> {
         match self {
-            Endpoint::Open { p, left } => T::to_closed(p, *left),
+            Endpoint::Open { p, side } => p.to_closed(*side),
             Endpoint::Closed { p, .. } => Some(*p),
             Endpoint::Unbounded { .. } => None,
         }
@@ -321,16 +320,16 @@ mod tests {
 
     #[test]
     fn endpoints() {
-        let left_closed_1 = Endpoint::Closed { p: 1, left: true };
-        let left_open_1 = Endpoint::Open { p: 1, left: true };
-        let right_closed_1 = Endpoint::Closed { p: 1, left: false };
-        let right_open_1 = Endpoint::Open { p: 1, left: false };
-        let left_closed_2 = Endpoint::Closed { p: 2, left: true };
-        let left_open_2 = Endpoint::Open { p: 2, left: true };
-        let right_closed_2 = Endpoint::Closed { p: 2, left: false };
-        let right_open_2 = Endpoint::Open { p: 2, left: false };
-        let left_unbounded = Endpoint::Unbounded { left: true };
-        let right_unbounded = Endpoint::Unbounded { left: false };
+        let left_closed_1 = Endpoint::Closed { p: 1, side: EndpointSide::Left };
+        let left_open_1 = Endpoint::Open { p: 1, side: EndpointSide::Left };
+        let right_closed_1 = Endpoint::Closed { p: 1, side: EndpointSide::Right };
+        let right_open_1 = Endpoint::Open { p: 1, side: EndpointSide::Right };
+        let left_closed_2 = Endpoint::Closed { p: 2, side: EndpointSide::Left };
+        let left_open_2 = Endpoint::Open { p: 2, side: EndpointSide::Left };
+        let right_closed_2 = Endpoint::Closed { p: 2, side: EndpointSide::Right };
+        let right_open_2 = Endpoint::Open { p: 2, side: EndpointSide::Right };
+        let left_unbounded = Endpoint::Unbounded { side: EndpointSide::Left };
+        let right_unbounded = Endpoint::Unbounded { side: EndpointSide::Right };
 
         // Comparison to values:
         assert_eq!(left_closed_1, 1);
@@ -471,5 +470,16 @@ mod tests {
         assert_eq!(right_unbounded.cmp(&right_open_2), Ordering::Greater);
         assert_eq!(right_unbounded.cmp(&left_unbounded), Ordering::Greater);
         assert_eq!(right_unbounded.cmp(&right_unbounded), Ordering::Equal);
+    }
+
+    #[test]
+    fn decimal_endpoint_conversion_uses_min_decimal_ulp() {
+        let z = Decimal::new(0, 0);
+        let ulp = Decimal::new(1, Decimal::MAX_SCALE);
+
+        assert_eq!(z.to_open(EndpointSide::Left).unwrap(), Decimal::new(-1, 28));
+        assert_eq!(z.to_open(EndpointSide::Right).unwrap(), ulp);
+        assert_eq!(z.to_closed(EndpointSide::Left).unwrap(), ulp);
+        assert_eq!(z.to_closed(EndpointSide::Right).unwrap(), Decimal::new(-1, 28));
     }
 }

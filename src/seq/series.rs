@@ -2,8 +2,7 @@ use std::iter::Map;
 use std::ops::RangeBounds;
 use std::slice::{Iter, Windows};
 
-use eyre::Result;
-
+use crate::Result;
 use crate::seq::inner::SeriesInner;
 use crate::span::any::SpanAny;
 
@@ -163,9 +162,15 @@ pub trait Series {
 
     /// Lookup the index of the last record which comes before |x|.
     fn span_before_idx(&self, x: Self::X) -> Option<usize> {
-        let idx = self.lower_bound_idx(x).unwrap_or(self.len() - 1);
+        let idx = self.lower_bound_idx(x).or(self.len().checked_sub(1));
 
-        if Self::span_of(self.get(idx)?).en >= x { idx.checked_sub(1) } else { Some(idx) }
+        if let Some(idx) = idx
+            && Self::span_of(self.get(idx)?).en >= x
+        {
+            idx.checked_sub(1)
+        } else {
+            idx
+        }
     }
 
     /// Lookup the last record which comes before |x|.
@@ -178,9 +183,15 @@ pub trait Series {
     /// record exists, look up the record which is immediately before |x|, if it
     /// exists.
     fn span_at_or_before_idx(&self, x: Self::X) -> Option<usize> {
-        let idx = self.upper_bound_idx(x).unwrap_or(self.len() - 1);
+        let idx = self.upper_bound_idx(x).or(self.len().checked_sub(1));
 
-        if Self::span_of(self.get(idx)?).st <= x { Some(idx) } else { idx.checked_sub(1) }
+        if let Some(idx) = idx
+            && Self::span_of(self.get(idx)?).st <= x
+        {
+            Some(idx)
+        } else {
+            idx.and_then(|idx| idx.checked_sub(1))
+        }
     }
 
     /// Lookup the last record which contains |x|. If no such record exists,

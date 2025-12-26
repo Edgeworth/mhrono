@@ -4,7 +4,7 @@ use std::ops::{Bound, Range, RangeInclusive, Sub};
 use serde::{Deserialize, Serialize};
 
 use crate::span::any::SpanAny;
-use crate::span::endpoint::EndpointConversion;
+use crate::span::endpoint::{EndpointConversion, EndpointSide};
 use crate::span::exc::SpanExc;
 use crate::span::ops::{pmax, pmin};
 
@@ -100,7 +100,7 @@ impl<T: EndpointConversion> SpanInc<T> {
     #[must_use]
     #[allow(clippy::needless_pass_by_value)]
     pub fn exc(st: T, en: T) -> Option<Self> {
-        <T as EndpointConversion>::to_closed(&en, false).map(|en| Self::new(st, en))
+        <T as EndpointConversion>::to_closed(&en, EndpointSide::Right).map(|en| Self::new(st, en))
     }
 }
 
@@ -119,7 +119,7 @@ impl<T: EndpointConversion + Copy> SpanInc<T> {
 impl<T: Sub + EndpointConversion + Copy> SpanInc<T> {
     #[must_use]
     pub fn size(&self) -> Option<T::Output> {
-        <T as EndpointConversion>::to_open(&self.en, false).map(|v| v - self.st)
+        <T as EndpointConversion>::to_open(&self.en, EndpointSide::Right).map(|v| v - self.st)
     }
 }
 
@@ -147,16 +147,18 @@ impl<T: EndpointConversion> TryFrom<SpanInc<T>> for Range<T> {
     type Error = ();
 
     fn try_from(s: SpanInc<T>) -> Result<Self, Self::Error> {
-        let en = <T as EndpointConversion>::to_open(&s.en, false).ok_or(())?;
+        let en = <T as EndpointConversion>::to_open(&s.en, EndpointSide::Right).ok_or(())?;
         Ok(s.st..en)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use chrono_tz::US::Eastern;
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::date::ymd;
 
     #[test]
     fn ops() {
@@ -386,5 +388,19 @@ mod tests {
         assert_eq!(inc_2_4.size(), Some(3));
         assert_eq!(inc_3_5.size(), Some(3));
         assert_eq!(empty.size(), Some(0));
+    }
+
+    #[test]
+    fn inclusive_span_operations_with_dates() {
+        let d1 = ymd(2020, 1, 1, Eastern);
+        let d2 = ymd(2020, 1, 10, Eastern);
+
+        let span = SpanInc::new(d1, d2);
+
+        assert!(span.contains(&d1));
+        assert!(span.contains(&d2));
+        assert!(span.contains(&ymd(2020, 1, 5, Eastern)));
+        assert!(!span.contains(&ymd(2019, 12, 31, Eastern)));
+        assert!(!span.contains(&ymd(2020, 1, 11, Eastern)));
     }
 }

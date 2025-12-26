@@ -2,11 +2,12 @@ use std::io::Write;
 
 use chrono_tz::US::Eastern;
 use chrono_tz::UTC;
-use eyre::Result;
 use mhrono::calendars::nyse::get_nyse;
 use mhrono::date::ymd;
 use mhrono::iter::DateIter;
 use moldenfile::Golden;
+
+type Result<T = ()> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 #[test]
 fn nyse_spans() -> Result<()> {

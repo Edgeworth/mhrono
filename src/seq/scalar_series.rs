@@ -1,10 +1,8 @@
-use eyre::Result;
-
 use crate::seq::inner::SeriesInner;
 use crate::seq::series::Series;
-use crate::series_ops;
 use crate::span::any::SpanAny;
 use crate::time::Time;
+use crate::{Result, series_ops};
 
 pub type TimeSeries<Y> = ScalarSeries<Time, Y>;
 
@@ -498,59 +496,63 @@ mod tests {
     }
 
     #[test]
-    fn scalar_subseq_unbounded_both() {
+    fn scalar_subseq_unbounded_both() -> Result<()> {
         let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
+        series.push((2, 10))?;
+        series.push((5, 20))?;
+        series.push((8, 30))?;
 
         let span = SpanAny::unb();
         let subseq = series.subseq(span);
         assert_eq!(subseq, &[(2, 10), (5, 20), (8, 30)]);
+        Ok(())
     }
 
     #[test]
-    fn scalar_subseq_unbounded_left() {
+    fn scalar_subseq_unbounded_left() -> Result<()> {
         let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
+        series.push((2, 10))?;
+        series.push((5, 20))?;
+        series.push((8, 30))?;
 
         let span = SpanAny::unb_inc(5);
         let subseq = series.subseq(span);
         assert_eq!(subseq, &[(2, 10), (5, 20)]);
+        Ok(())
     }
 
     #[test]
-    fn scalar_subseq_unbounded_right() {
+    fn scalar_subseq_unbounded_right() -> Result<()> {
         let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
+        series.push((2, 10))?;
+        series.push((5, 20))?;
+        series.push((8, 30))?;
 
         let span = SpanAny::inc_unb(5);
         let subseq = series.subseq(span);
         assert_eq!(subseq, &[(5, 20), (8, 30)]);
+        Ok(())
     }
 
     #[test]
-    fn scalar_subseq_bounded() {
+    fn scalar_subseq_bounded() -> Result<()> {
         let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
+        series.push((2, 10))?;
+        series.push((5, 20))?;
+        series.push((8, 30))?;
 
         let span = SpanAny::inc(5, 8);
         let subseq = series.subseq(span);
         assert_eq!(subseq, &[(5, 20), (8, 30)]);
+        Ok(())
     }
 
     #[test]
-    fn scalar_subseq_series_unbounded_both() {
+    fn scalar_subseq_series_unbounded_both() -> Result<()> {
         let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
+        series.push((2, 10))?;
+        series.push((5, 20))?;
+        series.push((8, 30))?;
 
         let span = SpanAny::unb();
         let subseq_series = series.subseq_series(span);
@@ -558,146 +560,181 @@ mod tests {
         assert_eq!(subseq_series.get(0), Some(&(2, 10)));
         assert_eq!(subseq_series.get(1), Some(&(5, 20)));
         assert_eq!(subseq_series.get(2), Some(&(8, 30)));
+        Ok(())
     }
 
     #[test]
-    fn scalar_subseq_series_unbounded_left() {
+    fn scalar_subseq_series_unbounded_left() -> Result<()> {
         let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
+        series.push((2, 10))?;
+        series.push((5, 20))?;
+        series.push((8, 30))?;
 
         let span = SpanAny::unb_inc(5);
         let subseq_series = series.subseq_series(span);
         assert_eq!(subseq_series.len(), 2);
         assert_eq!(subseq_series.get(0), Some(&(2, 10)));
         assert_eq!(subseq_series.get(1), Some(&(5, 20)));
+        Ok(())
     }
 
     #[test]
-    fn scalar_subseq_series_unbounded_right() {
+    fn scalar_subseq_series_unbounded_right() -> Result<()> {
         let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
+        series.push((2, 10))?;
+        series.push((5, 20))?;
+        series.push((8, 30))?;
 
         let span = SpanAny::inc_unb(5);
         let subseq_series = series.subseq_series(span);
         assert_eq!(subseq_series.len(), 2);
         assert_eq!(subseq_series.get(0), Some(&(5, 20)));
         assert_eq!(subseq_series.get(1), Some(&(8, 30)));
+        Ok(())
     }
 
     #[test]
-    fn scalar_subseq_series_bounded() {
+    fn scalar_subseq_series_bounded() -> Result<()> {
         let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
+        series.push((2, 10))?;
+        series.push((5, 20))?;
+        series.push((8, 30))?;
 
         let span = SpanAny::inc(5, 8);
         let subseq_series = series.subseq_series(span);
         assert_eq!(subseq_series.len(), 2);
         assert_eq!(subseq_series.get(0), Some(&(5, 20)));
         assert_eq!(subseq_series.get(1), Some(&(8, 30)));
+        Ok(())
     }
 
     #[test]
-    fn scalar_subseq_unbounded_left_exc() {
+    fn scalar_subseq_unbounded_left_exc() -> Result<()> {
         let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
+        series.push((2, 10))?;
+        series.push((5, 20))?;
+        series.push((8, 30))?;
 
         let span = SpanAny::unb_exc(5);
         let subseq = series.subseq(span);
         assert_eq!(subseq, &[(2, 10)]);
+        Ok(())
     }
 
     #[test]
-    fn scalar_subseq_unbounded_right_exc() {
+    fn scalar_subseq_unbounded_right_exc() -> Result<()> {
         let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
+        series.push((2, 10))?;
+        series.push((5, 20))?;
+        series.push((8, 30))?;
 
         let span = SpanAny::exc_unb(5);
         let subseq = series.subseq(span);
         assert_eq!(subseq, &[(8, 30)]);
+        Ok(())
     }
 
     #[test]
-    fn scalar_subseq_bounded_exc() {
+    fn scalar_subseq_bounded_exc() -> Result<()> {
         let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
+        series.push((2, 10))?;
+        series.push((5, 20))?;
+        series.push((8, 30))?;
 
         let span = SpanAny::exc(5, 8);
         let subseq = series.subseq(span);
         assert_eq!(subseq, &[(5, 20)]);
+        Ok(())
     }
 
     #[test]
-    fn scalar_subseq_bounded_exc_exc() {
+    fn scalar_subseq_bounded_exc_exc() -> Result<()> {
         let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
+        series.push((2, 10))?;
+        series.push((5, 20))?;
+        series.push((8, 30))?;
 
         let span = SpanAny::exc_exc(5, 8);
         let subseq = series.subseq(span);
         assert_eq!(subseq, &[]);
+        Ok(())
     }
 
     #[test]
-    fn scalar_subseq_series_unbounded_left_exc() {
+    fn scalar_subseq_series_unbounded_left_exc() -> Result<()> {
         let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
+        series.push((2, 10))?;
+        series.push((5, 20))?;
+        series.push((8, 30))?;
 
         let span = SpanAny::unb_exc(5);
         let subseq_series = series.subseq_series(span);
         assert_eq!(subseq_series.len(), 1);
         assert_eq!(subseq_series.get(0), Some(&(2, 10)));
+        Ok(())
     }
 
     #[test]
-    fn scalar_subseq_series_unbounded_right_exc() {
+    fn scalar_subseq_series_unbounded_right_exc() -> Result<()> {
         let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
+        series.push((2, 10))?;
+        series.push((5, 20))?;
+        series.push((8, 30))?;
 
         let span = SpanAny::exc_unb(5);
         let subseq_series = series.subseq_series(span);
         assert_eq!(subseq_series.len(), 1);
         assert_eq!(subseq_series.get(0), Some(&(8, 30)));
+        Ok(())
     }
 
     #[test]
-    fn scalar_subseq_series_bounded_exc() {
+    fn scalar_subseq_series_bounded_exc() -> Result<()> {
         let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
+        series.push((2, 10))?;
+        series.push((5, 20))?;
+        series.push((8, 30))?;
 
         let span = SpanAny::exc(5, 8);
         let subseq_series = series.subseq_series(span);
         assert_eq!(subseq_series.len(), 1);
         assert_eq!(subseq_series.get(0), Some(&(5, 20)));
+        Ok(())
     }
 
     #[test]
-    fn scalar_subseq_series_bounded_exc_exc() {
+    fn scalar_subseq_series_bounded_exc_exc() -> Result<()> {
         let mut series = ScalarSeries::new();
-        series.push((2, 10)).unwrap();
-        series.push((5, 20)).unwrap();
-        series.push((8, 30)).unwrap();
+        series.push((2, 10))?;
+        series.push((5, 20))?;
+        series.push((8, 30))?;
 
         let span = SpanAny::exc_exc(5, 8);
         let subseq_series = series.subseq_series(span);
         assert!(subseq_series.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn scalar_span_before_idx_empty_is_none() {
+        let series: ScalarSeries<i64, i64> = ScalarSeries::new();
+        assert_eq!(series.span_before_idx(0), None);
+    }
+
+    #[test]
+    fn scalar_span_at_or_before_idx_empty_is_none() {
+        let series: ScalarSeries<i64, i64> = ScalarSeries::new();
+        assert_eq!(series.span_at_or_before_idx(0), None);
+    }
+
+    #[test]
+    fn scalar_suffix_zero_is_empty() -> Result<()> {
+        let mut series: ScalarSeries<i64, i64> = ScalarSeries::new();
+        series.push((2, 10))?;
+        series.push((5, 20))?;
+
+        let suffix = series.suffix(0);
+        assert!(suffix.is_empty());
+        Ok(())
     }
 }

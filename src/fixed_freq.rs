@@ -5,7 +5,6 @@ use std::str::FromStr;
 
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 use derive_more::Display;
-use eyre::Result;
 use num_traits::ToPrimitive;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
@@ -14,6 +13,7 @@ use serde::{Deserialize, Serialize, ser};
 
 use crate::cycles::Cycles;
 use crate::duration::Duration;
+use crate::{Error, Result};
 
 /// Number of times something happens in a second. Hertz.
 #[must_use]
@@ -67,13 +67,19 @@ impl FixedFreq {
     pub const DAILY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::DAY);
     pub const WEEKLY: FixedFreq = FixedFreq::new(Cycles::one(), Duration::WEEK);
 
+    const fn from_parts(num: Decimal, denom: Decimal) -> Self {
+        assert!(!num.is_zero(), "frequency numerator cannot be zero");
+        assert!(!denom.is_zero(), "frequency duration cannot be zero");
+        Self { num, denom }
+    }
+
     pub const fn from_hz(hz: Decimal) -> Self {
-        Self { num: hz, denom: dec!(1) }
+        Self::from_parts(hz, dec!(1))
     }
 
     /// |cycles| cycles per given duration.
     pub const fn new(cyc: Cycles, dur: Duration) -> Self {
-        Self { num: cyc.count(), denom: dur.secs() }
+        Self::from_parts(cyc.count(), dur.secs())
     }
 
     /// |cycles| cycles per second.
@@ -107,7 +113,20 @@ impl FixedFreq {
     }
 
     pub fn from_human(human: &str) -> Result<Self> {
-        Ok(Self::new(Cycles::one(), Duration::from_human(human)?))
+        let (num, dur) = if let Some((num_str, dur_str)) = human.split_once(':') {
+            (Decimal::from_str(num_str.trim())?, Duration::from_human(dur_str.trim())?)
+        } else {
+            (dec!(1), Duration::from_human(human)?)
+        };
+
+        if num.is_zero() {
+            return Err(Error::FrequencyParse("frequency numerator cannot be zero".to_string()));
+        }
+        if dur.is_zero() {
+            return Err(Error::FrequencyParse("frequency duration cannot be zero".to_string()));
+        }
+
+        Ok(Self::new(Cycles::new(num), dur))
     }
 }
 
@@ -128,11 +147,21 @@ impl_op_ex_commutative!(*|a: &FixedFreq, b: &Cycles| -> Duration {
 
 macro_rules! fixed_freq_ops {
     ($t:ty) => {
-        impl_op_ex_commutative!(* |a: &FixedFreq, b: &$t| -> FixedFreq { FixedFreq { num: a.num * Decimal::try_from(*b).unwrap(), denom: a.denom } });
-        impl_op_ex!(*= |a: &mut FixedFreq, b: &$t| { a.num *= Decimal::try_from(*b).unwrap() });
+        impl_op_ex_commutative!(* |a: &FixedFreq, b: &$t| -> FixedFreq {
+            FixedFreq::from_parts(a.num * Decimal::try_from(*b).unwrap(), a.denom)
+        });
+        impl_op_ex!(*= |a: &mut FixedFreq, b: &$t| {
+            a.num *= Decimal::try_from(*b).unwrap();
+            assert!(!a.num.is_zero(), "frequency numerator cannot be zero");
+        });
 
-        impl_op_ex!(/ |a: &FixedFreq, b: &$t| -> FixedFreq { FixedFreq { num: a.num, denom: a.denom * Decimal::try_from(*b).unwrap() } });
-        impl_op_ex!(/= |a: &mut FixedFreq, b: &$t| { a.denom *= Decimal::try_from(*b).unwrap() });
+        impl_op_ex!(/ |a: &FixedFreq, b: &$t| -> FixedFreq {
+            FixedFreq::from_parts(a.num, a.denom * Decimal::try_from(*b).unwrap())
+        });
+        impl_op_ex!(/= |a: &mut FixedFreq, b: &$t| {
+            a.denom *= Decimal::try_from(*b).unwrap();
+            assert!(!a.denom.is_zero(), "frequency duration cannot be zero");
+        });
     };
 }
 
@@ -189,9 +218,9 @@ impl Serialize for FixedFreq {
 }
 
 impl FromStr for FixedFreq {
-    type Err = eyre::Report;
+    type Err = Error;
 
-    fn from_str(s: &str) -> Result<Self> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::from_human(s)
     }
 }
@@ -203,7 +232,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn serialization() -> Result<()> {
+    fn serialization() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let freq = FixedFreq::DAILY;
         let se = serde_json::to_string(&freq)?;
         assert_eq!(se, "\"1d\"");
@@ -213,14 +242,43 @@ mod tests {
     }
 
     #[test]
-    fn test_freq_from_hz() {
+    fn serialization_non_unit_numerator_round_trips()
+    -> std::result::Result<(), Box<dyn std::error::Error>> {
+        let freq = FixedFreq::new(Cycles::new(dec!(2)), Duration::SEC);
+        let se = serde_json::to_string(&freq)?;
+        assert_eq!(se, "\"2:1s\"");
+        let de: FixedFreq = serde_json::from_str(&se)?;
+        assert_eq!(de, freq);
+        Ok(())
+    }
+
+    #[test]
+    fn parse_human_accepts_ratio_format() -> Result<()> {
+        let de: FixedFreq = "2:1s".parse()?;
+        assert_eq!(de, FixedFreq::from_hz(dec!(2)));
+        Ok(())
+    }
+
+    #[test]
+    fn parse_zero_duration_is_err() {
+        assert!("0s".parse::<FixedFreq>().is_err());
+        assert!("2:0s".parse::<FixedFreq>().is_err());
+    }
+
+    #[test]
+    fn parse_zero_numerator_is_err() {
+        assert!("0:1s".parse::<FixedFreq>().is_err());
+    }
+
+    #[test]
+    fn freq_from_hz() {
         let freq = FixedFreq::from_hz(dec!(60));
         assert_eq!(freq.num, dec!(60));
         assert_eq!(freq.denom, dec!(1));
     }
 
     #[test]
-    fn test_freq_new() {
+    fn freq_new() {
         let cyc = Cycles::new(dec!(5));
         let dur = Duration::new(dec!(2));
         let freq = FixedFreq::new(cyc, dur);
@@ -229,7 +287,7 @@ mod tests {
     }
 
     #[test]
-    fn test_freq_cycle_duration() {
+    fn freq_cycle_duration() {
         let cyc = Cycles::new(dec!(5));
         let dur = Duration::new(dec!(2));
         let freq = FixedFreq::new(cyc, dur);
@@ -237,7 +295,7 @@ mod tests {
     }
 
     #[test]
-    fn test_freq_hz() {
+    fn freq_hz() {
         let cyc = Cycles::new(dec!(5));
         let dur = Duration::new(dec!(2));
         let freq = FixedFreq::new(cyc, dur);
@@ -245,14 +303,14 @@ mod tests {
     }
 
     #[test]
-    fn test_freq_eq() {
+    fn freq_eq() {
         let freq1 = FixedFreq::from_hz(dec!(60));
         let freq2 = FixedFreq::new(Cycles::new(dec!(120)), Duration::new(dec!(2)));
         assert_eq!(freq1, freq2);
     }
 
     #[test]
-    fn test_freq_ord() {
+    fn freq_ord() {
         let freq1 = FixedFreq::from_hz(dec!(60));
         let freq2 = FixedFreq::from_hz(dec!(120));
         assert!(freq1 < freq2);
@@ -260,7 +318,7 @@ mod tests {
     }
 
     #[test]
-    fn test_freq_multiplication_with_cycles() {
+    fn freq_multiplication_with_cycles() {
         let freq = FixedFreq::from_hz(dec!(60));
         let cycles = Cycles::new(dec!(2));
         let result = freq * cycles;
@@ -268,7 +326,7 @@ mod tests {
     }
 
     #[test]
-    fn test_freq_multiplication_with_duration() {
+    fn freq_multiplication_with_duration() {
         let freq = FixedFreq::from_hz(dec!(60));
         let duration = Duration::new(dec!(2));
         let result = freq * duration;
@@ -276,7 +334,7 @@ mod tests {
     }
 
     #[test]
-    fn test_freq_division_with_cycles() {
+    fn freq_division_with_cycles() {
         let cycles = Cycles::new(dec!(120));
         let freq = FixedFreq::from_hz(dec!(60));
         let result = cycles / freq;
@@ -284,7 +342,7 @@ mod tests {
     }
 
     #[test]
-    fn test_freq_division_with_duration() {
+    fn freq_division_with_duration() {
         let freq1 = FixedFreq::from_hz(dec!(120));
         let freq2 = FixedFreq::from_hz(dec!(60));
         let result = freq1 / freq2;

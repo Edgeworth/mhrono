@@ -86,38 +86,54 @@ pub struct Calendar {
 }
 
 impl Calendar {
-    /// Note that |v| `SpanOps` must be in chronological order.
-    /// If a holiday affects a day, spans will be chosen from the list of
-    /// span ops that `SpanSet` is associated with. If there are multiple such,
-    /// it will be done in order of |v|. If no holidays affect a day, spans
-    /// are chosen in order of |v|.
-    pub fn new(
-        name: &str,
-        tz: Tz,
-        opens: &[SpanOp],
-        hols: &[&'static DaySet],
-        v: &[(&[SpanOp], &[&'static DaySet])],
-    ) -> Self {
-        let mut overrides = Vec::with_capacity(v.len());
-        for (span_op, hols) in v {
-            overrides.push((
-                span_op.to_vec(),
-                hols.iter().map(|&v| v.clone()).collect(),
-                RangeCache::new(),
-            ));
-        }
+    pub fn new(name: &str, tz: Tz) -> Self {
         Self {
             name: name.to_owned(),
             tz,
-            opens: opens.to_vec(),
-            hols: hols.iter().map(|&v| v.clone()).collect(),
+            opens: Vec::new(),
+            hols: Vec::new(),
             cache: RangeCache::new(),
-            overrides,
+            overrides: Vec::new(),
         }
+    }
+
+    /// Note: `SpanOp`s must be in chronological order.
+    pub fn with_opens(mut self, opens: &[SpanOp]) -> Self {
+        self.opens = opens.to_vec();
+        self
+    }
+
+    pub fn with_holidays(mut self, hols: &[&'static DaySet]) -> Self {
+        self.hols = hols.iter().map(|&v| v.clone()).collect();
+        self
+    }
+
+    /// If a holiday affects a day, spans will be chosen from the list of span ops that the
+    /// holiday list is associated with. If multiple overrides match, the first one wins.
+    pub fn with_overrides(mut self, v: &[(&[SpanOp], &[&'static DaySet])]) -> Self {
+        self.overrides = v
+            .iter()
+            .map(|(opens, hols)| {
+                (opens.to_vec(), hols.iter().map(|&v| v.clone()).collect(), RangeCache::new())
+            })
+            .collect();
+        self
+    }
+
+    pub fn with_override(mut self, opens: &[SpanOp], hols: &[&'static DaySet]) -> Self {
+        self.overrides.push((
+            opens.to_vec(),
+            hols.iter().map(|&v| v.clone()).collect(),
+            RangeCache::new(),
+        ));
+        self
     }
 
     /// Finds the first span that starts at or after the given time.
     pub fn next_span(&mut self, t: &Time) -> Option<SpanExc<Time>> {
+        if self.opens.is_empty() && self.overrides.iter().all(|(opens, _, _)| opens.is_empty()) {
+            return None;
+        }
         let mut t = t.with_tz(self.tz);
         loop {
             let d = t.date();
@@ -255,5 +271,30 @@ impl Ranger for UncachedDaySet {
         } else {
             self.iter_span(s, DateIter::day(st.with_year(sty), iter_en), v);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono_tz::US::Eastern;
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[test]
+    fn next_span_in_day_with_no_opens_is_none() -> crate::Result<()> {
+        let mut cal = Calendar::new("Empty", Eastern);
+        let d = ymd(2020, 1, 1, Eastern);
+        let t = d.time()?;
+        assert_eq!(cal.next_span_in_day(d, &t), None);
+        Ok(())
+    }
+
+    #[test]
+    fn next_span_with_no_opens_returns_none() -> crate::Result<()> {
+        let mut cal = Calendar::new("Empty", Eastern);
+        let t = ymd(2020, 1, 1, Eastern).time()?;
+        assert_eq!(cal.next_span(&t), None);
+        Ok(())
     }
 }

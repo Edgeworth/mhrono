@@ -4,7 +4,7 @@ use std::ops::{Bound, Range, RangeInclusive, Sub};
 use serde::{Deserialize, Serialize};
 
 use crate::span::any::SpanAny;
-use crate::span::endpoint::EndpointConversion;
+use crate::span::endpoint::{EndpointConversion, EndpointSide};
 use crate::span::inc::SpanInc;
 use crate::span::ops::{pmax, pmin};
 
@@ -94,7 +94,7 @@ impl<T: PartialOrd + Copy> SpanExc<T> {
 impl<T: EndpointConversion + Copy> SpanExc<T> {
     #[must_use]
     pub fn inc(st: T, en: T) -> Option<Self> {
-        <T as EndpointConversion>::to_open(&en, false).map(|en| Self::new(st, en))
+        <T as EndpointConversion>::to_open(&en, EndpointSide::Right).map(|en| Self::new(st, en))
     }
 
     #[must_use]
@@ -144,16 +144,18 @@ impl<T: EndpointConversion> TryFrom<SpanExc<T>> for RangeInclusive<T> {
     type Error = ();
 
     fn try_from(s: SpanExc<T>) -> Result<Self, Self::Error> {
-        let en = <T as EndpointConversion>::to_closed(&s.en, false).ok_or(())?;
+        let en = <T as EndpointConversion>::to_closed(&s.en, EndpointSide::Right).ok_or(())?;
         Ok(s.st..=en)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use chrono_tz::US::Eastern;
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::date::ymd;
 
     #[test]
     fn ops() {
@@ -383,5 +385,42 @@ mod tests {
         assert_eq!(inc_2_4.size(), 3);
         assert_eq!(inc_3_5.size(), 3);
         assert_eq!(empty.size(), 0);
+    }
+
+    #[test]
+    fn span_operations_with_dates() {
+        let d1 = ymd(2020, 1, 1, Eastern);
+        let d2 = ymd(2020, 1, 10, Eastern);
+        let d3 = ymd(2020, 1, 5, Eastern);
+        let d4 = ymd(2020, 1, 15, Eastern);
+
+        let span1 = SpanExc::new(d1, d2);
+        let span2 = SpanExc::new(d3, d4);
+
+        assert!(span1.contains(&d1));
+        assert!(span1.contains(&ymd(2020, 1, 5, Eastern)));
+        assert!(!span1.contains(&d2)); // Exclusive end
+
+        let inter = span1.intersect(&span2).unwrap();
+        assert_eq!(inter.st, d3);
+        assert_eq!(inter.en, d2);
+    }
+
+    #[test]
+    fn span_covering_with_dates() {
+        let d1 = ymd(2020, 1, 1, Eastern);
+        let d2 = ymd(2020, 1, 5, Eastern);
+        let d3 = ymd(2020, 1, 10, Eastern);
+        let d4 = ymd(2020, 1, 15, Eastern);
+
+        let span1 = SpanExc::new(d1, d2);
+        let span2 = SpanExc::new(d3, d4);
+
+        let cover = SpanExc::cover(&span1, &span2);
+        assert_eq!(cover.st, d1);
+        assert_eq!(cover.en, d4);
+
+        let empty = SpanExc::new(d1, d1);
+        assert_eq!(SpanExc::cover(&span1, &empty), span1);
     }
 }

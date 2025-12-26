@@ -5,7 +5,6 @@ use std::str::FromStr;
 
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 use derive_more::Display;
-use eyre::{Result, eyre};
 use num_traits::ToPrimitive;
 use rand::distr::uniform::{SampleBorrow, SampleUniform, UniformFloat, UniformSampler};
 use rand::prelude::*;
@@ -14,7 +13,8 @@ use rust_decimal_macros::dec;
 use serde::de::{self, Visitor};
 use serde::{Deserialize, Serialize, ser};
 
-use crate::span::endpoint::EndpointConversion;
+use crate::span::endpoint::{EndpointConversion, EndpointSide};
+use crate::{Error, Result};
 
 #[must_use]
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Display, Ord, PartialOrd)]
@@ -64,6 +64,16 @@ impl Duration {
     }
 
     #[must_use]
+    pub const fn is_positive(&self) -> bool {
+        self.secs.is_sign_positive() && !self.secs.is_zero()
+    }
+
+    #[must_use]
+    pub const fn is_negative(&self) -> bool {
+        self.secs.is_sign_negative()
+    }
+
+    #[must_use]
     pub fn secs_f64(self) -> f64 {
         self.secs.to_f64().unwrap()
     }
@@ -74,10 +84,10 @@ impl Duration {
     }
 
     #[must_use]
-    pub fn to_chrono(&self) -> std::time::Duration {
+    pub fn to_chrono(&self) -> Option<std::time::Duration> {
         let secs = self.secs.trunc();
         let nanos = ((self.secs - secs) * dec!(1000000000)).trunc();
-        std::time::Duration::new(secs.to_u64().unwrap(), nanos.to_u64().unwrap() as u32)
+        Some(std::time::Duration::new(secs.to_u64()?, nanos.to_u32()?))
     }
 
     pub fn human(&self) -> Result<String> {
@@ -85,17 +95,30 @@ impl Duration {
     }
 
     pub fn human_bases(&self, bases: &[(&str, Duration)]) -> Result<String> {
+        if self.is_zero() {
+            return Ok("0s".to_string());
+        }
         let mut rem = *self;
         let mut human = String::new();
+
+        if rem.is_negative() {
+            rem = -rem;
+            write!(human, "-").unwrap();
+        }
+
         for &(s, dur) in bases {
             let div = (rem / dur).trunc();
             rem -= dur * div;
             if !div.is_zero() {
-                let _ = write!(human, "{div}{s}");
+                write!(human, "{div}{s}").unwrap();
             }
         }
         // Some sub-attosecond duration...
-        if rem.is_zero() { Ok(human) } else { Err(eyre!("remainder is not zero")) }
+        if rem.is_zero() {
+            Ok(human)
+        } else {
+            Err(Error::DurationParse("remainder is not zero".to_string()))
+        }
     }
 
     pub fn from_human(s: &str) -> Result<Duration> {
@@ -103,10 +126,17 @@ impl Duration {
 
         // First character must be a digit:
         if s.is_empty() {
-            return Err(eyre!("empty duration"));
+            return Err(Error::DurationParse("empty duration".to_string()));
         }
+
+        let (s, sign) = match s.chars().next().unwrap() {
+            '-' => (&s[1..], -1),
+            '+' => (&s[1..], 1),
+            _ => (s, 1),
+        };
+
         if !s.chars().next().unwrap().is_ascii_digit() {
-            return Err(eyre!("duration must start with a digit"));
+            return Err(Error::DurationParse("duration must start with a digit".to_string()));
         }
 
         let mut cur_number = 0;
@@ -115,23 +145,31 @@ impl Duration {
         for c in s.chars().chain(once('0')) {
             if let Some(digit) = c.to_digit(10) {
                 if !is_digit {
-                    let base = Duration::BASES
-                        .iter()
-                        .find(|v| v.0 == cur_ident)
-                        .ok_or_else(|| eyre!("unknown duration"))?;
+                    let base =
+                        Duration::BASES.iter().find(|v| v.0 == cur_ident).ok_or_else(|| {
+                            Error::DurationParse(format!("unknown duration unit {cur_ident}"))
+                        })?;
                     dur += cur_number * base.1;
                     cur_number = 0;
                     cur_ident.clear();
                 }
-                cur_number = cur_number * 10 + digit as i64;
+                cur_number = cur_number
+                    .checked_mul(10)
+                    .and_then(|v| v.checked_add(digit as i64))
+                    .ok_or_else(|| {
+                    Error::DurationParse("overflow in duration number".to_string())
+                })?;
                 is_digit = true;
             } else {
                 cur_ident.push(c);
                 is_digit = false;
             }
         }
+        if cur_number != 0 {
+            return Err(Error::DurationParse("trailing number without unit".to_string()));
+        }
 
-        Ok(dur)
+        Ok(dur * sign)
     }
 }
 
@@ -140,6 +178,8 @@ impl Default for Duration {
         Self::zero()
     }
 }
+
+impl_op_ex!(-|a: &Duration| -> Duration { Duration::new(-a.secs) });
 
 impl_op_ex!(+ |a: &Duration, b: &Duration| -> Duration {Duration::new(a.secs + b.secs) });
 impl_op_ex!(+= |a: &mut Duration, b: &Duration| { a.secs += b.secs });
@@ -244,25 +284,26 @@ impl Serialize for Duration {
 }
 
 impl FromStr for Duration {
-    type Err = eyre::Report;
+    type Err = Error;
 
-    fn from_str(s: &str) -> Result<Self> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::from_human(s)
     }
 }
 
 impl EndpointConversion for Duration {
-    fn to_open(&self, left: bool) -> Option<Self> {
-        self.secs.to_open(left).map(Self::new)
+    fn to_open(&self, side: EndpointSide) -> Option<Self> {
+        self.secs.to_open(side).map(Self::new)
     }
 
-    fn to_closed(&self, left: bool) -> Option<Self> {
-        self.secs.to_closed(left).map(Self::new)
+    fn to_closed(&self, side: EndpointSide) -> Option<Self> {
+        self.secs.to_closed(side).map(Self::new)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use approx::assert_relative_eq;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -322,12 +363,243 @@ mod tests {
     }
 
     #[test]
-    fn serialization() -> Result<()> {
+    fn serialization() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let dur = Duration::DAY;
         let se = serde_json::to_string(&dur)?;
         assert_eq!(se, "\"1d\"");
         let de: Duration = serde_json::from_str(&se)?;
         assert_eq!(de, dur);
         Ok(())
+    }
+
+    #[test]
+    fn serialization_negative_round_trips() -> std::result::Result<(), Box<dyn std::error::Error>> {
+        let dur = Duration::new(dec!(-61));
+        let se = serde_json::to_string(&dur)?;
+        assert_eq!(se, "\"-1m1s\"");
+        let de: Duration = serde_json::from_str(&se)?;
+        assert_eq!(de, dur);
+        Ok(())
+    }
+
+    #[test]
+    fn constants() {
+        assert_eq!(Duration::NSEC.secs(), dec!(0.000000001));
+        assert_eq!(Duration::SEC.secs(), dec!(1));
+        assert_eq!(Duration::MIN.secs(), dec!(60));
+        assert_eq!(Duration::DAY.secs(), dec!(86400));
+    }
+
+    #[test]
+    fn new_and_zero() {
+        let d = Duration::new(dec!(42.5));
+        assert_eq!(d.secs(), dec!(42.5));
+
+        let z = Duration::zero();
+        assert_eq!(z.secs(), dec!(0));
+        assert!(z.is_zero());
+
+        let d = Duration::default();
+        assert_eq!(d.secs(), dec!(0));
+        assert!(d.is_zero());
+    }
+
+    #[test]
+    fn addition() {
+        let a = Duration::SEC;
+        let b = Duration::MSEC;
+        let c = a + b;
+        assert_eq!(c.secs(), dec!(1.001));
+
+        let mut a = Duration::SEC;
+        a += Duration::MSEC;
+        assert_eq!(a.secs(), dec!(1.001));
+    }
+
+    #[test]
+    fn subtraction() {
+        let a = Duration::SEC;
+        let b = Duration::MSEC;
+        let c = a - b;
+        assert_eq!(c.secs(), dec!(0.999));
+
+        let mut a = Duration::SEC;
+        a -= Duration::MSEC;
+        assert_eq!(a.secs(), dec!(0.999));
+    }
+
+    #[test]
+    fn division() {
+        let a = Duration::MIN;
+        let b = Duration::SEC;
+        let ratio = a / b;
+        assert_eq!(ratio, dec!(60));
+    }
+
+    #[test]
+    fn multiplication_with_i64() {
+        let d = Duration::SEC;
+        let result = d * 5_i64;
+        assert_eq!(result.secs(), dec!(5));
+
+        let result = 5_i64 * d;
+        assert_eq!(result.secs(), dec!(5));
+    }
+
+    #[test]
+    fn multiplication_with_decimal() {
+        let d = Duration::SEC;
+        let result = d * dec!(2.5);
+        assert_eq!(result.secs(), dec!(2.5));
+
+        let result = dec!(2.5) * d;
+        assert_eq!(result.secs(), dec!(2.5));
+    }
+
+    #[test]
+    fn division_with_decimal() {
+        let d = Duration::new(dec!(10));
+        let result = d / dec!(2);
+        assert_eq!(result.secs(), dec!(5));
+    }
+
+    #[test]
+    fn ordering() {
+        let a = Duration::SEC;
+        let b = Duration::MIN;
+        let c = Duration::SEC;
+
+        assert!(a < b);
+        assert!(b > a);
+        assert_eq!(a, c);
+        assert!(a <= c);
+        assert!(a >= c);
+    }
+
+    #[test]
+    fn secs_f64() {
+        let d = Duration::new(dec!(42.5));
+        assert_relative_eq!(d.secs_f64(), 42.5);
+    }
+
+    #[test]
+    fn to_chrono() {
+        let d = Duration::new(dec!(1.5));
+        assert_eq!(d.to_chrono(), Some(std::time::Duration::new(1, 500_000_000)));
+
+        let d = Duration::SEC;
+        assert_eq!(d.to_chrono(), Some(std::time::Duration::new(1, 0)));
+    }
+
+    #[test]
+    fn to_chrono_negative_is_none() {
+        let d = Duration::new(dec!(-1));
+        assert_eq!(d.to_chrono(), None);
+    }
+
+    #[test]
+    fn zero_duration() {
+        let zero = Duration::zero();
+        let one_sec = Duration::SEC;
+
+        assert_eq!(zero + one_sec, one_sec);
+        assert_eq!(one_sec + zero, one_sec);
+        assert_eq!(one_sec - zero, one_sec);
+        assert_eq!(zero * 100, zero);
+    }
+
+    #[test]
+    fn zero_round_trip() -> Result<()> {
+        let zero = Duration::zero();
+        let human = zero.human()?;
+        assert_eq!(human, "0s");
+        let parsed = Duration::from_human(&human)?;
+        assert_eq!(parsed, zero);
+        Ok(())
+    }
+
+    #[test]
+    fn display() {
+        assert_eq!(format!("{}", Duration::SEC), "1s");
+        assert_eq!(format!("{}", Duration::MIN), "1m");
+        assert_eq!(format!("{}", Duration::HOUR), "1h");
+        assert_eq!(format!("{}", Duration::DAY), "1d");
+    }
+
+    #[test]
+    fn endpoint_conversion() {
+        let d = Duration::SEC;
+
+        // Left endpoint to open should subtract ULP
+        let left_open = d.to_open(EndpointSide::Left).unwrap();
+        assert!(left_open.secs() < d.secs());
+
+        // Right endpoint to open should add ULP
+        let right_open = d.to_open(EndpointSide::Right).unwrap();
+        assert!(right_open.secs() > d.secs());
+
+        // Left endpoint to closed should add ULP
+        let left_closed = d.to_closed(EndpointSide::Left).unwrap();
+        assert!(left_closed.secs() > d.secs());
+
+        // Right endpoint to closed should subtract ULP
+        let right_closed = d.to_closed(EndpointSide::Right).unwrap();
+        assert!(right_closed.secs() < d.secs());
+    }
+
+    #[test]
+    fn endpoint_conversion_uses_decimal_ulp() {
+        let d = Duration::SEC;
+        let ulp = Decimal::new(1, Decimal::MAX_SCALE);
+
+        assert_eq!(d.to_open(EndpointSide::Left).unwrap(), Duration::new(dec!(1) - ulp));
+        assert_eq!(d.to_open(EndpointSide::Right).unwrap(), Duration::new(dec!(1) + ulp));
+        assert_eq!(d.to_closed(EndpointSide::Left).unwrap(), Duration::new(dec!(1) + ulp));
+        assert_eq!(d.to_closed(EndpointSide::Right).unwrap(), Duration::new(dec!(1) - ulp));
+    }
+
+    #[test]
+    fn from_human_errors() {
+        assert!(Duration::from_human("").is_err());
+        assert!(Duration::from_human("xyz").is_err());
+        assert!(Duration::from_human("1xyz").is_err());
+        assert!(Duration::from_human("1").is_err());
+        assert!(Duration::from_human("1ms2").is_err());
+    }
+
+    #[test]
+    fn from_human_zero_units() -> Result<()> {
+        assert_eq!(Duration::from_human("0s")?, Duration::zero());
+        assert_eq!(Duration::from_human("0ms")?, Duration::zero());
+        assert_eq!(Duration::from_human("0m")?, Duration::zero());
+        assert_eq!(Duration::from_human("0h")?, Duration::zero());
+        assert_eq!(Duration::from_human("0d")?, Duration::zero());
+        assert_eq!(Duration::from_human("0w")?, Duration::zero());
+        assert_eq!(Duration::from_human("0as")?, Duration::zero());
+        assert_eq!(Duration::from_human("0fs")?, Duration::zero());
+        assert_eq!(Duration::from_human("0ps")?, Duration::zero());
+        assert_eq!(Duration::from_human("0ns")?, Duration::zero());
+        assert_eq!(Duration::from_human("0us")?, Duration::zero());
+        // Mixed zeros should also be valid.
+        assert_eq!(Duration::from_human("0s0ms")?, Duration::zero());
+        Ok(())
+    }
+
+    #[test]
+    fn duration_arithmetic_chain() -> Result<()> {
+        let base = Duration::HOUR;
+        let result = base + Duration::MIN * 30 + Duration::SEC * 45;
+
+        assert_eq!(result.secs(), dec!(5445));
+        assert_eq!(result.human()?, "1h30m45s");
+
+        Ok(())
+    }
+
+    #[test]
+    fn from_human_overflow_is_error() {
+        // Too many digits to fit in i64 should result in an error.
+        let big = "9999999999999999999999999999s";
+        assert!(Duration::from_human(big).is_err());
     }
 }

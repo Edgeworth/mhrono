@@ -82,17 +82,17 @@ impl<V: Clone> SeriesInner<V> {
 
     #[must_use]
     pub fn first(&self) -> Option<&V> {
-        self.data.get(self.st)
+        self.slice().first()
     }
 
     #[must_use]
     pub fn last(&self) -> Option<&V> {
-        if self.en == 0 { None } else { self.data.get(self.en - 1) }
+        self.slice().last()
     }
 
     #[must_use]
     pub fn get(&self, index: usize) -> Option<&V> {
-        self.data.get(self.st + index)
+        self.slice().get(index)
     }
 
     pub fn data_mut(&mut self) -> SeriesGuard<'_, V> {
@@ -140,10 +140,7 @@ impl<V: Clone> SeriesInner<V> {
             Bound::Excluded(&en) => self.st + en,
             Bound::Unbounded => self.en,
         };
-        assert!(
-            !(st > en || st > self.data.len() || en > self.data.len()),
-            "Invalid range: {st} > {en}"
-        );
+        assert!(st <= en && st <= self.en && en <= self.en, "Invalid range: {st} > {en}");
 
         Self { data: Arc::clone(&self.data), st, en }
     }
@@ -153,7 +150,7 @@ impl<V: Clone> Index<usize> for SeriesInner<V> {
     type Output = V;
 
     fn index(&self, index: usize) -> &Self::Output {
-        &self.data[self.st + index]
+        &self.slice()[index]
     }
 }
 
@@ -164,38 +161,61 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_new() {
+    fn new() {
         let data = vec![1, 2, 3];
         let series = SeriesInner::new(data.clone());
         assert_eq!(series.data.as_ref(), &data);
     }
 
     #[test]
-    fn test_empty() {
+    fn empty() {
         let empty_series: SeriesInner<i32> = SeriesInner::empty();
         assert_eq!(empty_series.data.as_ref(), &Vec::<i32>::new());
     }
 
     #[test]
-    fn test_len() {
+    fn len() {
         let series = SeriesInner::new(vec![1, 2, 3]);
         assert_eq!(series.len(), 3);
     }
 
     #[test]
-    fn test_is_empty() {
+    fn is_empty() {
         let empty_series: SeriesInner<i32> = SeriesInner::empty();
         assert!(empty_series.is_empty());
     }
 
     #[test]
-    fn test_slice() {
+    fn slice() {
         let series = SeriesInner::new(vec![1, 2, 3]);
         assert_eq!(series.slice(), &[1, 2, 3]);
     }
 
     #[test]
-    fn test_data_mut() {
+    fn view_accessors_respect_bounds() {
+        let series = SeriesInner::new(vec![1, 2, 3, 4, 5]);
+        let view = series.subseq(1..4);
+        assert_eq!(view.slice(), &[2, 3, 4]);
+        assert_eq!(view.first(), Some(&2));
+        assert_eq!(view.last(), Some(&4));
+        assert_eq!(view.get(0), Some(&2));
+        assert_eq!(view.get(2), Some(&4));
+        assert_eq!(view.get(3), None);
+        assert_eq!(view[0], 2);
+    }
+
+    #[test]
+    fn empty_view_accessors_are_none() {
+        let series = SeriesInner::new(vec![1, 2, 3, 4, 5]);
+        let view = series.subseq(2..2);
+        assert!(view.is_empty());
+        assert_eq!(view.first(), None);
+        assert_eq!(view.last(), None);
+        assert_eq!(view.get(0), None);
+    }
+
+    #[test]
+    fn data_mut() {
         let mut series = SeriesInner::new(vec![1, 2, 3]);
         series.st = 1;
         let data_mut = series.data_mut();
@@ -203,14 +223,14 @@ mod tests {
     }
 
     #[test]
-    fn test_push() {
+    fn push() {
         let mut series = SeriesInner::new(vec![1, 2, 3]);
         series.push(4);
         assert_eq!(series.data.as_ref(), &vec![1, 2, 3, 4]);
     }
 
     #[test]
-    fn test_pop() {
+    fn pop() {
         let mut series = SeriesInner::new(vec![1, 2, 3]);
         let popped_value = series.pop();
         assert_eq!(popped_value, Some(3));
@@ -218,7 +238,7 @@ mod tests {
     }
 
     #[test]
-    fn test_subseq() {
+    fn subseq() {
         let series = SeriesInner::new(vec![1, 2, 3, 4, 5]);
         let subseries = series.subseq(1..4);
         assert_eq!(subseries.data.as_ref(), series.data.as_ref());
@@ -228,7 +248,26 @@ mod tests {
     }
 
     #[test]
-    fn test_push_subseq() {
+    fn subseq_len_len_is_empty() {
+        let series = SeriesInner::new(vec![1, 2, 3]);
+        let len = series.len();
+        let sub = series.subseq(len..len);
+        assert!(sub.is_empty());
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid range")]
+    fn subseq_respects_view_bounds() {
+        let series = SeriesInner::new(vec![1, 2, 3, 4, 5]);
+        let view = series.subseq(1..3);
+        assert_eq!(view.slice(), &[2, 3]);
+
+        // Range bounds should be relative to the view and should not allow escaping.
+        let _ = view.subseq(..4);
+    }
+
+    #[test]
+    fn push_subseq() {
         let series = SeriesInner::new(vec![1, 2, 3, 4, 5]);
         let mut subseries = series.subseq(1..3);
         assert_eq!(subseries.data.as_ref(), &vec![1, 2, 3, 4, 5]);
@@ -268,7 +307,7 @@ mod tests {
     }
 
     #[test]
-    fn test_pop_subseq() {
+    fn pop_subseq() {
         let series = SeriesInner::new(vec![1, 2, 3, 4, 5]);
         let mut subseries = series.subseq(1..3);
         assert_eq!(subseries.data.as_ref(), &vec![1, 2, 3, 4, 5]);
@@ -311,7 +350,7 @@ mod tests {
     }
 
     #[test]
-    fn test_data_mut_modify_vec_push() {
+    fn data_mut_modify_vec_push() {
         let mut series = SeriesInner::new(vec![1, 2, 3]);
 
         {
@@ -326,7 +365,7 @@ mod tests {
     }
 
     #[test]
-    fn test_data_mut_modify_vec_pop() {
+    fn data_mut_modify_vec_pop() {
         let mut series = SeriesInner::new(vec![1, 2, 3]);
 
         {

@@ -4,7 +4,6 @@ use std::hash::Hash;
 use std::str::FromStr;
 
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
-use eyre::Result;
 use rust_decimal::Decimal;
 use serde::de::{self, Visitor};
 use serde::{Deserialize, Serialize};
@@ -13,6 +12,7 @@ use strum::{Display as StrumDisplay, EnumString};
 use crate::duration::Duration;
 use crate::op::{TOp, TimeOp};
 use crate::time::Time;
+use crate::{Error, Result};
 
 /// Frequency. For now this should be representable as at most two lowercase
 /// English letters and be case insensitive.
@@ -31,6 +31,7 @@ use crate::time::Time;
     StrumDisplay,
     EnumString,
 )]
+#[strum(ascii_case_insensitive)]
 pub enum SemanticFreq {
     #[strum(serialize = "ms")]
     Millisecond,
@@ -205,8 +206,13 @@ impl Freq {
 
 macro_rules! semantic_freq_ops {
     ($t:ty) => {
-        impl_op_ex_commutative!(* |a: &Freq, b: &$t| -> Freq { Freq { count: a.count * (*b as i16), base: a.base } });
-        impl_op_ex!(*= |a: &mut Freq, b: &$t| { a.count *= *b as i16 });
+        impl_op_ex_commutative!(* |a: &Freq, b: &$t| -> Freq {
+            let count = a.count.checked_mul((*b).try_into().unwrap()).unwrap();
+            Freq { count, base: a.base
+        } });
+        impl_op_ex!(*= |a: &mut Freq, b: &$t| {
+            a.count = a.count.checked_mul((*b).try_into().unwrap()).unwrap();
+        });
    };
 }
 
@@ -248,11 +254,11 @@ impl Serialize for Freq {
 }
 
 impl FromStr for Freq {
-    type Err = eyre::Report;
+    type Err = Error;
 
-    fn from_str(s: &str) -> Result<Self> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.is_empty() {
-            return Err(eyre::eyre!("Empty string"));
+            return Err(Error::FrequencyParse("empty string".to_string()));
         }
 
         // Assumes that the string is ascii.
@@ -275,7 +281,7 @@ mod tests {
     use crate::time::ymdhms;
 
     #[test]
-    fn serialization() -> Result<()> {
+    fn serialization() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let freq = Freq::MILLI;
         let se = serde_json::to_string(&freq)?;
         assert_eq!(se, "\"1ms\"");
@@ -334,7 +340,7 @@ mod tests {
     }
 
     #[test]
-    fn test_deserialization_invalid_input() {
+    fn deserialization_invalid_input() {
         let data = "1zz"; // Invalid frequency
         let result: Result<Freq, _> = serde_json::from_str(data);
         assert!(result.is_err());
@@ -345,13 +351,32 @@ mod tests {
     }
 
     #[test]
-    fn test_freq_eq() {
+    fn deserialization_invalid_input_as_json_string() {
+        let data = "\"1zz\""; // Invalid frequency
+        let result: Result<Freq, _> = serde_json::from_str(data);
+        assert!(result.is_err());
+
+        let data = "\"zz\""; // Invalid format
+        let result: Result<Freq, _> = serde_json::from_str(data);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn freq_parsing_is_case_insensitive() -> std::result::Result<(), Box<dyn std::error::Error>> {
+        assert_eq!("1D".parse::<Freq>()?, Freq::DAILY);
+        let result: Freq = serde_json::from_str("\"1D\"")?;
+        assert_eq!(result, Freq::DAILY);
+        Ok(())
+    }
+
+    #[test]
+    fn freq_eq() {
         assert_eq!(Freq::HOURLY, Freq::HOURLY);
         assert_ne!(Freq::HOURLY, Freq::WEEKLY);
     }
 
     #[test]
-    fn test_freq_ord() {
+    fn freq_ord() {
         assert!(Freq::HOURLY > Freq::DAILY);
         assert!(Freq::SEC > Freq::DAILY);
         assert!(Freq::MONTHLY < Freq::DAILY);
@@ -359,7 +384,7 @@ mod tests {
     }
 
     #[test]
-    fn test_semantic_freq_ops() {
+    fn semantic_freq_ops() {
         let mut freq = Freq::new(1, SemanticFreq::Millisecond);
         freq *= 2;
         assert_eq!(freq, Freq::new(2, SemanticFreq::Millisecond));
@@ -369,7 +394,7 @@ mod tests {
     }
 
     #[test]
-    fn test_next() {
+    fn next() {
         let t = ymdhms(2017, 3, 5, 2, 57, 12, Eastern);
 
         assert_eq!(Freq::SEC.next(&t), ymdhms(2017, 3, 5, 2, 57, 13, Eastern));
@@ -382,7 +407,7 @@ mod tests {
         assert_eq!(Freq::YEARLY.next(&t), ymdhms(2018, 3, 5, 2, 57, 12, Eastern));
     }
     #[test]
-    fn test_prev() {
+    fn prev() {
         let t = ymdhms(2017, 3, 5, 2, 57, 12, Eastern);
 
         assert_eq!(Freq::SEC.prev(&t), ymdhms(2017, 3, 5, 2, 57, 11, Eastern));
@@ -395,7 +420,7 @@ mod tests {
     }
 
     #[test]
-    fn test_approx_cycle_millis() {
+    fn approx_cycle_millis() {
         assert_eq!(Freq::millis(2).approx_cycle_millis(), 2);
         assert_eq!(Freq::secs(2).approx_cycle_millis(), 2 * 1000);
         assert_eq!(Freq::mins(2).approx_cycle_millis(), 2 * 60 * 1000);
@@ -407,7 +432,7 @@ mod tests {
     }
 
     #[test]
-    fn test_approx_cycle_duration() {
+    fn approx_cycle_duration() {
         assert_eq!(Freq::millis(2).approx_cycle_duration(), 2 * Duration::MSEC);
         assert_eq!(Freq::secs(2).approx_cycle_duration(), 2 * Duration::SEC);
         assert_eq!(Freq::mins(2).approx_cycle_duration(), 2 * Duration::MIN);

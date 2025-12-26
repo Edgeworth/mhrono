@@ -5,7 +5,7 @@ use std::ops::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::span::endpoint::{Endpoint, EndpointConversion};
+use crate::span::endpoint::{Endpoint, EndpointConversion, EndpointSide};
 use crate::span::exc::SpanExc;
 use crate::span::inc::SpanInc;
 use crate::span::ops::{pmax, pmin};
@@ -36,51 +36,69 @@ impl<T> SpanAny<T> {
 
     /// Exclusive-exclusive.
     pub const fn exc_exc(st: T, en: T) -> Self {
-        Self { st: Endpoint::Open { p: st, left: true }, en: Endpoint::Open { p: en, left: false } }
+        Self {
+            st: Endpoint::Open { p: st, side: EndpointSide::Left },
+            en: Endpoint::Open { p: en, side: EndpointSide::Right },
+        }
     }
 
     /// Exclusive-inclusive.
     pub const fn exc_inc(st: T, en: T) -> Self {
         Self {
-            st: Endpoint::Open { p: st, left: true },
-            en: Endpoint::Closed { p: en, left: false },
+            st: Endpoint::Open { p: st, side: EndpointSide::Left },
+            en: Endpoint::Closed { p: en, side: EndpointSide::Right },
         }
     }
 
     /// Inclusive-exclusive.
     pub const fn exc(st: T, en: T) -> Self {
         Self {
-            st: Endpoint::Closed { p: st, left: true },
-            en: Endpoint::Open { p: en, left: false },
+            st: Endpoint::Closed { p: st, side: EndpointSide::Left },
+            en: Endpoint::Open { p: en, side: EndpointSide::Right },
         }
     }
 
     /// Inclusive-inclusive.
     pub const fn inc(st: T, en: T) -> Self {
         Self {
-            st: Endpoint::Closed { p: st, left: true },
-            en: Endpoint::Closed { p: en, left: false },
+            st: Endpoint::Closed { p: st, side: EndpointSide::Left },
+            en: Endpoint::Closed { p: en, side: EndpointSide::Right },
         }
     }
 
     pub const fn unb_exc(en: T) -> Self {
-        Self { st: Endpoint::Unbounded { left: true }, en: Endpoint::Open { p: en, left: false } }
+        Self {
+            st: Endpoint::Unbounded { side: EndpointSide::Left },
+            en: Endpoint::Open { p: en, side: EndpointSide::Right },
+        }
     }
 
     pub const fn unb_inc(en: T) -> Self {
-        Self { st: Endpoint::Unbounded { left: true }, en: Endpoint::Closed { p: en, left: false } }
+        Self {
+            st: Endpoint::Unbounded { side: EndpointSide::Left },
+            en: Endpoint::Closed { p: en, side: EndpointSide::Right },
+        }
     }
 
     pub const fn exc_unb(st: T) -> Self {
-        Self { st: Endpoint::Open { p: st, left: true }, en: Endpoint::Unbounded { left: false } }
+        Self {
+            st: Endpoint::Open { p: st, side: EndpointSide::Left },
+            en: Endpoint::Unbounded { side: EndpointSide::Right },
+        }
     }
 
     pub const fn inc_unb(st: T) -> Self {
-        Self { st: Endpoint::Closed { p: st, left: true }, en: Endpoint::Unbounded { left: false } }
+        Self {
+            st: Endpoint::Closed { p: st, side: EndpointSide::Left },
+            en: Endpoint::Unbounded { side: EndpointSide::Right },
+        }
     }
 
     pub const fn unb() -> Self {
-        Self { st: Endpoint::Unbounded { left: true }, en: Endpoint::Unbounded { left: false } }
+        Self {
+            st: Endpoint::Unbounded { side: EndpointSide::Left },
+            en: Endpoint::Unbounded { side: EndpointSide::Right },
+        }
     }
 
     #[must_use]
@@ -174,7 +192,10 @@ impl<T: Copy> SpanAny<T> {
     }
 
     pub fn point(p: T) -> Self {
-        Self { st: Endpoint::Closed { p, left: true }, en: Endpoint::Closed { p, left: false } }
+        Self {
+            st: Endpoint::Closed { p, side: EndpointSide::Left },
+            en: Endpoint::Closed { p, side: EndpointSide::Right },
+        }
     }
 }
 
@@ -198,15 +219,18 @@ impl<T: PartialOrd + Copy> SpanAny<T> {
 
 impl<T> From<(Bound<T>, Bound<T>)> for SpanAny<T> {
     fn from(v: (Bound<T>, Bound<T>)) -> Self {
-        Self::new(Endpoint::from_bound(v.0, true), Endpoint::from_bound(v.1, false))
+        Self::new(
+            Endpoint::from_bound(v.0, EndpointSide::Left),
+            Endpoint::from_bound(v.1, EndpointSide::Right),
+        )
     }
 }
 
 impl<T: Copy> From<(Bound<&T>, Bound<&T>)> for SpanAny<T> {
     fn from(v: (Bound<&T>, Bound<&T>)) -> Self {
         Self::new(
-            Endpoint::from_bound(v.0.cloned(), true),
-            Endpoint::from_bound(v.1.cloned(), false),
+            Endpoint::from_bound(v.0.cloned(), EndpointSide::Left),
+            Endpoint::from_bound(v.1.cloned(), EndpointSide::Right),
         )
     }
 }
