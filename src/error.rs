@@ -45,9 +45,4 @@ impl Error {
     pub fn custom<E: std::error::Error + Send + Sync + 'static>(err: E) -> Self {
         Self::Custom(Box::new(err))
     }
-
-    /// Create a custom error from a string message.
-    pub fn msg(msg: impl Into<String>) -> Self {
-        Self::Custom(msg.into().into())
-    }
 }
